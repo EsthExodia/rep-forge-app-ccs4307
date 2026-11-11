@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071b29">
+  <title>RepForge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- ============ AUTH ============ -->
+<div id="auth" class="auth">
+  <aside class="brand" aria-label="RepForge introduction">
+    <div class="wordmark"><span class="mark" aria-hidden="true">R</span><span>REP<b>FORGE</b></span></div>
+    <div class="brand-copy">
+      <div class="eyebrow">Build your routine</div>
+      <div class="display">Forge your<br><em>progress.</em></div>
+      <p>Plan your workouts, track your lifts, and see how far you've come. One rep at a time.</p>
+    </div>
+    <div class="brand-feats"><span>37 built-in exercises</span><span>10 starter routines</span><span>Form tutorials</span><span>Rest timer</span></div>
+  </aside>
+  <section class="form-side" aria-label="Account access">
+    <div class="card-auth">
+      <div class="mobile-logo"><div class="wordmark"><span class="mark" aria-hidden="true">R</span><span>REP<b>FORGE</b></span></div></div>
+
+      <div id="v-login">
+        <h1>Welcome back.</h1>
+        <p class="subtitle">Log in to your RepForge account and keep your momentum going.</p>
+        <form id="login-form" novalidate>
+          <div class="field"><label for="login-email">Email address</label><input class="input" id="login-email" type="email" placeholder="you@example.com" autocomplete="email" required></div>
+          <div class="field"><label for="login-password">Password</label><div class="pw"><input class="input" id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" required><button type="button" data-toggle="login-password">Show</button></div></div>
+          <div id="login-err" class="err" hidden></div>
+          <button class="btn primary block" type="submit">LOG IN</button>
+        </form>
+        <div class="divider">OR</div>
+        <button class="btn block" type="button" data-act="demo">Try the demo account</button>
+        <p class="switch-line">Don't have an account? <button class="linkbtn" type="button" data-act="show-register">Register</button></p>
+      </div>
+
+      <div id="v-register" hidden>
+        <h1>Join the forge.</h1>
+        <p class="subtitle">Create an account and start building a stronger routine.</p>
+        <form id="register-form" novalidate>
+          <div class="field"><label for="reg-name">Full name</label><input class="input" id="reg-name" placeholder="Your name" autocomplete="name" required></div>
+          <div class="field"><label for="reg-email">Email address</label><input class="input" id="reg-email" type="email" placeholder="you@example.com" autocomplete="email" required></div>
+          <div class="field"><label for="reg-password">Password</label><div class="pw"><input class="input" id="reg-password" type="password" placeholder="At least 8 characters" autocomplete="new-password" required><button type="button" data-toggle="reg-password">Show</button></div></div>
+          <div class="field"><label for="reg-confirm">Confirm password</label><div class="pw"><input class="input" id="reg-confirm" type="password" placeholder="Repeat your password" autocomplete="new-password" required><button type="button" data-toggle="reg-confirm">Show</button></div></div>
+          <div id="reg-err" class="err" hidden></div>
+          <button class="btn primary block" type="submit">CREATE ACCOUNT</button>
+        </form>
+        <p class="switch-line">Already have an account? <button class="linkbtn" type="button" data-act="show-login">Log in</button></p>
+      </div>
+      <p class="fine">Prototype: accounts are saved only in this browser.</p>
+    </div>
+  </section>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app" hidden>
+  <aside class="side">
+    <div class="wordmark"><span class="mark" aria-hidden="true">R</span><span>REP<b>FORGE</b></span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot"><strong id="side-name"></strong><span id="side-email"></span></div>
+  </aside>
+  <main><div class="topbar"><div class="wordmark"><span class="mark" aria-hidden="true">R</span><span>REP<b>FORGE</b></span></div></div><div class="wrap" id="view"></div></main>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<div id="modal" class="modal" hidden></div>
+<div id="rest" class="rest" hidden></div>
+<button id="resume" class="resume" type="button" data-act="go" data-v="log" hidden></button>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
