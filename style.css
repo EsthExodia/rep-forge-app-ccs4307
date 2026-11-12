@@ -245,5 +245,54 @@ tr.done .check svg{opacity:1}
 .hist-ex div{display:flex;justify-content:space-between;gap:12px}
 .hist-ex span:last-child{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 @media(max-width:520px){.hist-ex{padding-left:16px}}
+/* onboarding */
+.steps{display:flex;gap:6px;margin-bottom:20px}
+.steps i{flex:1;height:4px;border-radius:4px;background:var(--line)}
+.steps i.on{background:var(--green)}
+.opts{display:grid;gap:10px;margin-bottom:22px}
+.opt{display:flex;align-items:center;gap:14px;padding:13px 15px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);text-align:left;width:100%;transition:border-color .15s,background .15s}
+.opt:hover{border-color:var(--green)}
+.opt[aria-pressed="true"]{border-color:var(--green);background:var(--green-soft)}
+.opt .gi{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:grid;place-items:center;color:var(--green-ink);flex:none}
+.opt .gi svg{width:22px;height:22px}
+.opt[aria-pressed="true"] .gi{background:var(--green);color:var(--on-green)}
+.opt .grow{flex:1;min-width:0}
+.opt b{display:block;font-size:15px}
+.opt small{display:block;color:var(--muted);font-size:13px;line-height:1.4}
+.q{font-size:15px;font-weight:800;margin:0 0 10px}
+.daychips{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:24px}
+.daychips button{height:48px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-weight:800;font-size:16px}
+.daychips button:hover{border-color:var(--green)}
+.daychips button[aria-pressed="true"]{border-color:var(--green);background:var(--green);color:var(--on-green)}
+.ob-nav{display:flex;gap:10px}
+.ob-nav .btn{flex:1;height:50px}
+.ob-nav .btn:disabled{opacity:.45;cursor:not-allowed}
+.unit{position:relative}
+.unit .input{padding-right:48px}
+.unit span{position:absolute;right:16px;top:14px;color:var(--muted);font-weight:700}
+/* plan */
+.plan{padding:20px;display:grid;gap:20px}
+.plan-top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between}
+.plan-goal{display:flex;gap:14px;align-items:center;min-width:0}
+.plan-goal .gi{width:48px;height:48px;border-radius:12px;background:var(--green);color:var(--on-green);display:grid;place-items:center;flex:none}
+.plan-goal .gi svg{width:26px;height:26px}
+.plan-goal h3{font-size:22px;font-weight:850}
+.targets{display:flex;flex-wrap:wrap;gap:8px}
+.target{padding:9px 13px;border-radius:10px;background:var(--surface2);min-width:112px}
+.target span{display:block;font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.target b{font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{font-size:12.5px;color:var(--muted);margin:-8px 0 0}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.day{padding:9px 2px;border-radius:9px;background:var(--surface2);text-align:center;font-size:11px;color:var(--muted);min-width:0}
+.day b{display:block;font-size:12.5px;color:var(--muted);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day.on{background:var(--green-soft);color:var(--green-ink)}
+.day.on b{color:var(--fg);font-weight:800}
+.day.today{box-shadow:inset 0 0 0 2px var(--green)}
+@media(max-width:520px){.week{gap:4px}.day{padding:8px 0;font-size:10px}.day b{font-size:10.5px;text-overflow:clip;letter-spacing:-.02em}.plan{padding:16px}}
+.tips{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tip{padding:14px 15px;border-radius:10px;border:1px solid var(--line);display:grid;gap:3px;align-content:start}
+.tip .k{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--green-ink)}
+.tip b{font-size:14.5px}
+.tip p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.5}
 .toast{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:80;background:var(--fg);color:var(--bg);padding:11px 18px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 10px 26px #0004}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}

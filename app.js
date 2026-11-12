@@ -53,6 +53,86 @@ const TPL=[
  {id:'t_db',name:'Dumbbells Only',lvl:'Beginner',freq:'Home or hotel gym',d:'A full workout with just a pair of dumbbells.',x:[['goblet',3,12],['db_bench',3,10],['db_row',3,10],['db_shoulder',3,10],['lunge',3,10],['hammer',3,12]]}
 ];
 
+TPL.push(
+ {id:'t_circuit',name:'Fat Burn Circuit',lvl:'Beginner',freq:'2–4× / week',d:'Higher reps and short rests to keep your heart rate up while you build muscle.',x:[['goblet',3,15],['pushup',3,12],['db_row',3,12],['lunge',3,12],['russian',3,20],['plank',3,45]]},
+ {id:'t_mass',name:'Mass Builder',lvl:'Beginner',freq:'3× / week',d:'Full-body compound lifts in the 8–12 rep range for adding size.',x:[['squat',4,8],['bench',4,8],['row',4,8],['rdl',3,10],['db_shoulder',3,10],['bb_curl',3,12]]},
+ {id:'t_fit',name:'Total Body Fitness',lvl:'Beginner',freq:'2–3× / week',d:'Balanced full-body session for general health and posture.',x:[['goblet',3,12],['pushup',3,10],['cable_row',3,12],['lunge',2,10],['facepull',2,15],['plank',3,30]]}
+);
+const SHORT={t_full:'Full',t_upper:'Upper',t_lower:'Lower',t_push:'Push',t_pull:'Pull',t_legs:'Legs',t_5a:'5×5 A',t_5b:'5×5 B',t_big3:'Big 3',t_db:'DB',t_circuit:'Circuit',t_mass:'Mass',t_fit:'Fit'};
+TPL.forEach(t=>t.s=SHORT[t.id]);
+const TPLM=Object.fromEntries(TPL.map(t=>[t.id,t]));
+const GI={
+ lose:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M21 11v6h-6"/></svg>',
+ muscle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4m3-6v8m12-8v8m3-6v4M6 12h12"/></svg>',
+ strength:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M5 8v8M8 5v14M16 5v14M19 8v8"/></svg>',
+ gain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 13V7h-6"/></svg>',
+ fit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>'
+};
+const GOALS={
+ lose:{name:'Lose fat',sub:'Drop body fat while keeping your muscle.',kcal:[-500,-300],cal:'300–500 under',prot:[1.8,2.2],reps:'8–15, short rests'},
+ muscle:{name:'Build muscle',sub:'Get bigger and more defined.',kcal:[200,300],cal:'200–300 over',prot:[1.6,2.2],reps:'6–12, near failure'},
+ strength:{name:'Get stronger',sub:'Lift heavier on squat, bench and deadlift.',kcal:[0,250],cal:'0–250 over',prot:[1.6,2.2],reps:'1–6, long rests'},
+ gain:{name:'Gain weight',sub:'Put on size if you struggle to eat enough.',kcal:[300,500],cal:'300–500 over',prot:[1.6,2],reps:'6–10, heavy compounds'},
+ fit:{name:'Stay fit and healthy',sub:'Feel good, move well and build the habit.',kcal:[0,0],cal:'Maintenance',prot:[1.2,1.6],reps:'10–15, 2–3 in reserve'}
+};
+const LEVELS={new:{name:'New to lifting',sub:'Less than 6 months of training'},mid:{name:'Some experience',sub:'6 months to 2 years'},adv:{name:'Experienced',sub:'More than 2 years of consistent training'}};
+const TIPS={
+ lose:[
+  ['Nutrition','Eat in a small deficit','Eat about 300–500 kcal below maintenance. Losing 0.5–1% of your bodyweight a week is fast enough; faster than that costs muscle.'],
+  ['Protein','Prioritise protein','Eat {prot}. It protects your muscle while you diet and keeps you full. Spread it over 3–4 meals.'],
+  ['Training','Keep lifting heavy','Lifting is what tells your body to keep muscle. Don\'t switch to only light weights and high reps.'],
+  ['Activity','Walk every day','Aim for 7,000–10,000 steps. Walking burns calories without eating into your recovery.'],
+  ['Recovery','Sleep 7–9 hours','Short sleep raises hunger and makes cravings harder to resist.']],
+ muscle:[
+  ['Nutrition','Eat a small surplus','Eat about 200–300 kcal above maintenance. Gaining 0.25–0.5% of bodyweight a week keeps most of the gain as muscle.'],
+  ['Protein','Hit your protein daily','Eat {prot}, split across 3–5 meals.'],
+  ['Training','Train hard','Take most sets to 1–3 reps short of failure in the 6–12 rep range. Easy sets don\'t build muscle.'],
+  ['Progress','Beat last week','When you hit the top of the rep range on every set, add 2.5 kg or a rep. The Previous column in the logger shows what to beat.'],
+  ['Volume','10–20 sets per muscle','Do 10–20 hard sets per muscle group each week, spread over at least 2 sessions.']],
+ strength:[
+  ['Training','Practise the big lifts','Squat, bench and deadlift 2–3 times a week, mostly in the 1–6 rep range.'],
+  ['Rest','Rest longer between sets','Take 3–5 minutes between heavy sets so every set is a quality one. Set the rest timer to 180s in Profile.'],
+  ['Progress','Add weight in small jumps','Add 2.5 kg to upper-body lifts and 5 kg to lower-body lifts while you keep hitting your reps.'],
+  ['Nutrition','Eat enough','Eat at maintenance or slightly above. Strength stalls quickly in a big calorie deficit.'],
+  ['Protein','Recover between sessions','Eat {prot} to recover between heavy sessions.'],
+  ['Technique','Film your top sets','Recording your heaviest set each session is the fastest way to catch form breakdowns.']],
+ gain:[
+  ['Nutrition','Eat more than feels normal','Eat about 300–500 kcal above maintenance and aim for +0.25–0.5 kg a week. If the scale hasn\'t moved in 2 weeks, add another 200 kcal.'],
+  ['Food','Use calorie-dense foods','Rice, oats, bananas, peanut butter, eggs, whole milk and cooking oil add calories without filling you up too much.'],
+  ['Meals','Eat 4–5 times a day','Don\'t skip breakfast. A shake of milk, oats, banana and peanut butter is an easy 600+ kcal.'],
+  ['Protein','Build muscle, not just weight','Eat {prot} so more of the weight you gain is muscle.'],
+  ['Training','Focus on compound lifts','Squats, presses, rows and deadlifts in the 6–10 rep range, adding weight every week.']],
+ fit:[
+  ['Training','Lift 2–4 times a week','Full-body sessions cover everything. Leave 2–3 reps in the tank; showing up consistently matters more than intensity.'],
+  ['Cardio','Add some cardio','Get 150 minutes of moderate cardio a week: brisk walks, cycling, swimming or sports.'],
+  ['Protein','Eat enough protein','Eat {prot} to recover well and stay strong as you age.'],
+  ['Nutrition','Eat mostly whole foods','Eat around maintenance with plenty of vegetables, fruit, lean protein and water.'],
+  ['Recovery','Sleep and stay mobile','Sleep 7–9 hours and spend 5–10 minutes on mobility on rest days.']]
+};
+const LVTIP={
+ new:['Form','Learn the movements first','Start light and watch the video tutorial for each exercise. Beginners can add weight almost every session.'],
+ mid:['Tracking','Log every set','Progress slows after the first year. Beating your Previous numbers is how you know the plan is working.'],
+ adv:['Recovery','Plan deload weeks','Every 4–8 weeks, halve your sets for a week to let your joints and nervous system recover.']
+};
+const PAT={2:[0,3],3:[0,2,4],4:[0,1,3,4],5:[0,1,2,4,5],6:[0,1,2,3,4,5]};
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function recPlan(p){const d=p.days,l=p.level,R=(rot,extra=[])=>({rot,extra});
+  switch(p.goal){
+   case 'lose':return d<=3?R(['t_circuit','t_full'],['t_db']):d===4?R(['t_upper','t_lower'],['t_circuit']):R(['t_push','t_pull','t_legs'],['t_circuit']);
+   case 'muscle':return d<=3?R([l==='new'?'t_full':'t_mass'],[l==='new'?'t_mass':'t_full','t_db']):d===4?R(['t_upper','t_lower'],['t_mass']):R(['t_push','t_pull','t_legs'],['t_upper','t_lower']);
+   case 'strength':return l==='new'||d<=3?R(['t_5a','t_5b'],l==='new'?['t_full']:['t_big3']):R(['t_big3','t_upper','t_lower'],['t_5a']);
+   case 'gain':return d<=3?R(['t_mass'],['t_5a','t_5b']):d===4?R(['t_upper','t_lower'],['t_mass']):R(['t_push','t_pull','t_legs'],['t_mass']);
+   default:return d<=3?R(['t_fit','t_full'],['t_db']):R(['t_upper','t_lower','t_fit'],['t_circuit']);
+  }}
+function recIds(p){const r=recPlan(p);return [...new Set([...r.rot,...r.extra])]}
+function schedule(p){const r=recPlan(p).rot,a=Array(7).fill(null);(PAT[p.days]||PAT[3]).forEach((di,k)=>a[di]=r[k%r.length]);return a}
+const fmtN=n=>n.toLocaleString('en-US');
+function targets(p){const G=GOALS[p.goal],bw=+p.bw||0;
+  const prot=bw?`${Math.round(bw*G.prot[0])}–${Math.round(bw*G.prot[1])} g`:`${G.prot[0]}–${G.prot[1]} g/kg`;
+  let cal=G.cal;if(bw){const m=Math.round(bw*31/50)*50,lo=m+G.kcal[0],hi=m+G.kcal[1];cal=lo===hi?'≈ '+fmtN(lo):`≈ ${fmtN(lo)}–${fmtN(hi)}`}
+  return{prot,cal,protText:bw?`${Math.round(bw*G.prot[0])}–${Math.round(bw*G.prot[1])} g of protein a day (${G.prot[0]}–${G.prot[1]} g per kg)`:`${G.prot[0]}–${G.prot[1]} g of protein per kg of bodyweight a day`}}
+function tipsFor(p){const t=targets(p);return [...TIPS[p.goal],LVTIP[p.level]].map(([k,b,x])=>({k,b,p:x.replace('{prot}',t.protText)}))}
+
 /* ---------------- Utils ---------------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -89,7 +169,7 @@ function save(){if(!me)return;users[me].data=data;store.set('rf_users',users)}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2200)}
 
 /* ---------------- Auth ---------------- */
-function showAuth(which){$('#v-login').hidden=which!=='login';$('#v-register').hidden=which!=='register';$('#login-err').hidden=$('#reg-err').hidden=true}
+function showAuth(which){$('#v-login').hidden=which!=='login';$('#v-register').hidden=which!=='register';$('#v-onboard').hidden=true;$('#auth-fine').hidden=false;$('#login-err').hidden=$('#reg-err').hidden=true}
 function err(id,msg){const e=$(id);e.textContent=msg;e.hidden=false}
 $('#login-form').addEventListener('submit',async e=>{e.preventDefault();
   const em=$('#login-email').value.trim().toLowerCase(),pw=$('#login-password').value;
@@ -104,13 +184,41 @@ $('#register-form').addEventListener('submit',async e=>{e.preventDefault();
   if(pw!==cf)return err('#reg-err','The two passwords don\'t match.');
   if(users[em])return err('#reg-err','An account with this email already exists. Log in instead.');
   users[em]={name,pw:await hash(pw),created:Date.now(),data:{history:[],routines:[],active:null}};store.set('rf_users',users);
-  signIn(em,true)});
-function signIn(em,isNew){me=em;data=users[em].data;store.set('rf_session',em);ui.view='home';
-  $('#auth').hidden=true;$('#app').hidden=false;$('#side-name').textContent=users[em].name;$('#side-email').textContent=em;
-  render();if(isNew)toast('Account created. Pick a routine to start.')}
+  signIn(em)});
+function signIn(em){me=em;data=users[em].data;store.set('rf_session',em);
+  $('#side-name').textContent=users[em].name;$('#side-email').textContent=em;
+  if(!data.profile){showOnboard(false);return}
+  enterApp()}
+function enterApp(){ui.view='home';$('#auth').hidden=true;$('#app').hidden=false;render();window.scrollTo(0,0)}
+
+/* ---------------- Onboarding ---------------- */
+const ob={step:1,edit:false,p:{}};
+function showOnboard(edit){ob.edit=!!edit;ob.step=1;ob.err='';ob.p=Object.assign({goal:null,level:null,days:3,bw:''},data.profile||{});if(ob.p.bw==null)ob.p.bw='';
+  closeModal();$('#app').hidden=true;$('#resume').hidden=true;$('#rest').hidden=true;$('#auth').hidden=false;
+  $('#v-login').hidden=$('#v-register').hidden=true;$('#auth-fine').hidden=true;$('#v-onboard').hidden=false;drawOnboard();window.scrollTo(0,0)}
+function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' ')[0]);
+  const bar=`<div class="steps" aria-hidden="true">${[1,2,3].map(i=>`<i class="${i<=st?'on':''}"></i>`).join('')}</div><div class="eyebrow" style="margin-bottom:8px">Step ${st} of 3</div>`;
+  const opt=(k,v,title,sub,icon)=>`<button type="button" class="opt" data-act="ob-pick" data-k="${k}" data-v="${v}" aria-pressed="${p[k]===v}">${icon?`<span class="gi">${icon}</span>`:''}<span class="grow"><b>${title}</b><small>${sub}</small></span></button>`;
+  let h='';
+  if(st===1)h=`<h1>${ob.edit?'Change your goal':'What\'s your goal, '+first+'?'}</h1><p class="subtitle">We'll suggest routines and tips that fit it. You can change this any time in Profile.</p>
+    <div class="opts" role="group" aria-label="Goal">${Object.entries(GOALS).map(([k,g])=>opt('goal',k,g.name,g.sub,GI[k])).join('')}</div>
+    <div class="ob-nav">${ob.edit?'<button type="button" class="btn" data-act="ob-cancel">Cancel</button>':''}<button type="button" class="btn primary" data-act="ob-next" ${p.goal?'':'disabled'}>Continue</button></div>`;
+  if(st===2)h=`<h1>How do you train?</h1><p class="subtitle">This sets the difficulty and how your week is split.</p>
+    <p class="q">Experience</p><div class="opts" role="group" aria-label="Experience">${Object.entries(LEVELS).map(([k,l])=>opt('level',k,l.name,l.sub)).join('')}</div>
+    <p class="q">Days per week</p><div class="daychips" role="group" aria-label="Days per week">${[2,3,4,5,6].map(d=>`<button type="button" data-act="ob-pick" data-k="days" data-v="${d}" aria-pressed="${p.days===d}">${d}</button>`).join('')}</div>
+    <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-next" ${p.level?'':'disabled'}>Continue</button></div>`;
+  if(st===3)h=`<h1>Your bodyweight</h1><p class="subtitle">Optional. We use it to work out your daily protein target and a rough calorie estimate.</p>
+    <div class="field"><label for="ob-bw">Bodyweight</label><div class="unit"><input class="input" id="ob-bw" inputmode="decimal" placeholder="e.g. 70" value="${esc(p.bw)}"><span>kg</span></div></div>
+    ${ob.err?`<div class="err">${esc(ob.err)}</div>`:''}
+    <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-done">${ob.edit?'Update my plan':'Build my plan'}</button></div>`;
+  $('#v-onboard').innerHTML=bar+h}
+function obDone(){const raw=String(ob.p.bw).trim();const bw=raw?parseFloat(raw):null;
+  if(raw&&!(bw>=30&&bw<=300)){ob.err='Enter a bodyweight between 30 and 300 kg, or leave it blank.';drawOnboard();return}
+  data.profile={goal:ob.p.goal,level:ob.p.level,days:ob.p.days,bw};save();enterApp();toast(ob.edit?'Plan updated':'Your plan is ready')}
 function signOut(){store.del('rf_session');me=data=null;stopRest();$('#app').hidden=true;$('#resume').hidden=true;$('#auth').hidden=false;showAuth('login');$('#login-password').value=''}
 async function demo(){const em='demo@repforge.app';
   if(!users[em]){users[em]={name:'Alex Reyes',pw:await hash('repforge123'),created:Date.now()-30*DAY,data:{history:seedHistory(),routines:[mkRoutine(TPL[1]),mkRoutine(TPL[2])],active:null}};store.set('rf_users',users)}
+  if(!users[em].data.profile){users[em].data.profile={goal:'muscle',level:'mid',days:4,bw:72};store.set('rf_users',users)}
   signIn(em)}
 function seedHistory(){const base={bench:60,incline_db:22,latpull:50,db_row:24,lat_raise:8,pushdown:20,squat:80,rdl:70,bss:14,leg_ext:40,calf:60,hanging_leg:0};
   const days=[24,22,19,17,15,12,10,8,5,3,1];const out=[];
@@ -140,14 +248,17 @@ function greet(){const h=new Date().getHours();return h<12?'Good morning':h<18?'
 function vHome(){
   const now=Date.now(),ws=weekStart(now);
   const wk=data.history.filter(w=>w.start>=ws);
-  const next=data.routines[0]||TPL[0];
+  const pr=data.profile,sched=schedule(pr),ti=(new Date().getDay()+6)%7,todayT=sched[ti]&&TPLM[sched[ti]];
+  const next=todayT||data.routines[0]||TPLM[recPlan(pr).rot[0]];const nextSrc=todayT||!data.routines[0]?'t':'r';
+  const nextLbl=todayT?'Today · '+GOALS[pr.goal].name:data.routines[0]?'Up next':'Suggested for you';
   const weeks=[...Array(8)].map((_,i)=>{const s=ws-(7-i)*7*DAY;const list=data.history.filter(w=>w.start>=s&&w.start<s+7*DAY);return{s,v:list.reduce((a,w)=>a+vol(w),0)}});
   const max=Math.max(1,...weeks.map(w=>w.v));const gl=niceMax(max);
   const recent=data.history.slice(0,4);
   return `
   <div class="head"><div><div class="eyebrow">${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div><h1>${greet()}, ${esc(users[me].name.split(' ')[0])}.</h1></div></div>
   ${data.active?`<div class="hero-card"><div><div class="eyebrow">In progress</div><h2>${esc(data.active.name)}</h2><p>Started ${clock(now-data.active.start)} ago · ${data.active.ex.length} exercises</p></div><button class="btn primary" data-act="go" data-v="log">Resume workout</button></div>`:
-  `<div class="hero-card"><div><div class="eyebrow">${data.routines[0]?'Up next':'Suggested for you'}</div><h2>${esc(next.name)}</h2><p>${next.x.length} exercises · about ${next.x.reduce((a,x)=>a+x[1],0)*3} min</p><div class="chips-inline">${next.x.map(x=>`<span>${esc(EXM[x[0]].name)}</span>`).join('')}</div></div><button class="btn primary" data-act="start-plan" data-src="${data.routines[0]?'r':'t'}" data-id="${next.id}">Start workout</button></div>`}
+  `<div class="hero-card"><div><div class="eyebrow">${nextLbl}</div><h2>${esc(next.name)}</h2><p>${next.x.length} exercises · about ${next.x.reduce((a,x)=>a+x[1],0)*3} min</p><div class="chips-inline">${next.x.map(x=>`<span>${esc(EXM[x[0]].name)}</span>`).join('')}</div></div><button class="btn primary" data-act="start-plan" data-src="${nextSrc}" data-id="${next.id}">Start workout</button></div>`}
+  ${planSection()}
   <div class="stats">
     <div class="panel stat"><div class="lbl">Workouts this week</div><div class="v num">${wk.length}</div></div>
     <div class="panel stat"><div class="lbl">Volume this week</div><div class="v num">${kfmt(wk.reduce((a,w)=>a+vol(w),0))}<small>kg</small></div></div>
@@ -156,27 +267,40 @@ function vHome(){
   </div>
   <section><div class="section-title"><h2>Weekly volume</h2><small>kg lifted, last 8 weeks</small></div>
     <div class="panel chart"><div class="bars">
-      <div class="gl" style="bottom:100%"><span class="num">${kfmt(gl)}</span></div><div class="gl" style="bottom:50%"><span class="num">${kfmt(gl/2)}</span></div>
+      ${weeks.some(w=>w.v)?`<div class="gl" style="bottom:100%"><span class="num">${kfmt(gl)}</span></div><div class="gl" style="bottom:50%"><span class="num">${kfmt(gl/2)}</span></div>`:''}
       ${weeks.map((w,i)=>`<div class="bar ${i===7?'now':''}" style="height:${w.v/gl*100}%" title="${kfmt(w.v)} kg">${w.v?`<b class="num">${kfmt(w.v)}</b>`:''}</div>`).join('')}
     </div><div class="xlabels">${weeks.map((w,i)=>`<span>${i===7?'This wk':new Date(w.s).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span>`).join('')}</div></div></section>
   <section><div class="section-title"><h2>Recent workouts</h2>${data.history.length?'<button class="linkbtn" data-act="go" data-v="history">View all</button>':''}</div>
     <div class="panel list">${recent.length?recent.map(histRow).join(''):'<div class="empty"><b>No workouts yet</b>Finish your first session and it will show up here.</div>'}</div></section>`;
 }
+function planSection(){const p=data.profile,G=GOALS[p.goal],t=targets(p),sc=schedule(p),ti=(new Date().getDay()+6)%7;
+  return `<section><div class="section-title"><h2>Your plan</h2><button class="linkbtn" data-act="change-goal">Change goal</button></div>
+  <div class="panel plan">
+    <div class="plan-top"><div class="plan-goal"><span class="gi">${GI[p.goal]}</span><div style="min-width:0"><div class="eyebrow">Your goal</div><h3>${G.name}</h3><div class="muted" style="font-size:13.5px">${LEVELS[p.level].name} · ${p.days} days a week${p.bw?` · ${p.bw} kg`:''}</div></div></div>
+      <div class="targets"><div class="target"><span>Protein / day</span><b>${t.prot}</b></div><div class="target"><span>Calories / day</span><b>${t.cal}${p.bw?'':' kcal'}</b></div><div class="target"><span>Reps</span><b>${G.reps}</b></div></div></div>
+    <p class="note">${p.bw?'Calories are a rough estimate from bodyweight only. Weigh yourself weekly and adjust by how your weight trends.':'Calories are relative to your maintenance. Add your bodyweight in Change goal to get exact gram and calorie targets.'}</p>
+    <div><div class="lbl" style="margin-bottom:8px">Your week</div><div class="week">${DAYS.map((n,i)=>`<div class="day ${sc[i]?'on':''} ${i===ti?'today':''}" title="${sc[i]?esc(TPLM[sc[i]].name):'Rest day'}"><span>${n}</span><b>${sc[i]?TPLM[sc[i]].s:'Rest'}</b></div>`).join('')}</div></div>
+    <div><div class="lbl" style="margin-bottom:8px">Tips for your goal</div><div class="tips">${tipsFor(p).map(x=>`<div class="tip"><span class="k">${x.k}</span><b>${esc(x.b)}</b><p>${esc(x.p)}</p></div>`).join('')}</div></div>
+  </div></section>
+  <section><div class="section-title"><h2>Recommended routines</h2><small>for ${G.name.toLowerCase()}</small></div>
+    <div class="grid">${recIds(p).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>`}
 function niceMax(m){const p=Math.pow(10,Math.floor(Math.log10(m)));for(const f of[1,2,2.5,5,10])if(f*p>=m)return f*p;return 10*p}
 function histRow(w,extra=''){return `<div class="row"><div class="ava">${initials(w.name)}</div><div class="grow"><div class="t">${esc(w.name)}</div><div class="s">${fmtDate(w.start)} · ${fmtDur(w.end-w.start)} · ${w.ex.length} exercises</div></div><div class="num" style="font-weight:800">${kfmt(vol(w))} kg</div>${extra}</div>`}
 
-function tplCard(t,mine){
-  return `<article class="panel tpl"><div class="meta">${mine?'<span class="tag g">My routine</span>':`<span class="tag g">${t.lvl}</span><span class="tag">${t.freq}</span>`}</div>
+function tplCard(t,mine,rec){
+  return `<article class="panel tpl"><div class="meta">${mine?'<span class="tag g">My routine</span>':`${rec?'<span class="tag g">Recommended</span>':''}<span class="tag ${rec?'':'g'}">${t.lvl}</span><span class="tag">${t.freq}</span>`}</div>
   <h3>${esc(t.name)}</h3>${t.d?`<p>${esc(t.d)}</p>`:''}
   <ul>${t.x.map(([id,s,r])=>`<li><span>${esc(EXM[id].name)}</span><span>${s} × ${r}${EXM[id].u?' s':''}</span></li>`).join('')}</ul>
   <div class="acts">${mine?`<button class="btn sm danger" data-act="del-routine" data-id="${t.id}">Delete</button>`:`<button class="btn sm" data-act="preview" data-id="${t.id}">Preview</button>`}<button class="btn sm primary" data-act="start-plan" data-src="${mine?'r':'t'}" data-id="${t.id}">Start</button></div></article>`}
 function vWorkout(){
   return `<div class="head"><div><h1>Start a workout</h1><p>Pick one of your routines, a suggested template, or log freestyle.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="new-routine">New routine</button><button class="btn primary" data-act="start-empty">Start empty workout</button></div></div>
+  <section><div class="section-title"><h2>Recommended for you</h2><small>${GOALS[data.profile.goal].name} · ${data.profile.days} days a week</small></div>
+    <div class="grid">${recIds(data.profile).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>
   <section><div class="section-title"><h2>My routines</h2><small>${data.routines.length} saved</small></div>
     ${data.routines.length?`<div class="grid">${data.routines.map(r=>tplCard(r,true)).join('')}</div>`:'<div class="panel empty"><b>No routines yet</b>Save a template below or build your own with New routine.</div>'}</section>
-  <section><div class="section-title"><h2>Suggested templates</h2><small>${TPL.length} routines</small></div>
-    <div class="grid">${TPL.map(t=>tplCard(t)).join('')}</div></section>`;
+  <section><div class="section-title"><h2>All templates</h2><small>${TPL.length} routines</small></div>
+    <div class="grid">${TPL.filter(t=>!recIds(data.profile).includes(t.id)).map(t=>tplCard(t)).join('')}</div></section>`;
 }
 function filtered(){const q=ui.q.toLowerCase();return EX.filter(e=>(ui.muscle==='All'||e.m===ui.muscle)&&(!q||(e.name+' '+e.e+' '+e.m).toLowerCase().includes(q)))}
 function vExercises(){const list=filtered();
@@ -197,6 +321,8 @@ function vProfile(){const u=users[me];
   <div class="panel stat"><div class="lbl">Total volume</div><div class="v num">${kfmt(data.history.reduce((a,w)=>a+vol(w),0))}<small>kg</small></div></div>
   <div class="panel stat"><div class="lbl">Time trained</div><div class="v num">${fmtDur(data.history.reduce((a,w)=>a+(w.end-w.start),0))}</div></div>
   <div class="panel stat"><div class="lbl">Routines</div><div class="v num">${data.routines.length}</div></div></div>
+  <section><div class="section-title"><h2>Goal</h2></div>
+  <div class="panel list"><div class="row"><div class="ava" style="background:var(--green);color:var(--on-green);border-color:var(--green)">${GI[data.profile.goal].replace('<svg','<svg width="22" height="22"')}</div><div class="grow"><div class="t">${GOALS[data.profile.goal].name}</div><div class="s">${LEVELS[data.profile.level].name} · ${data.profile.days} days a week${data.profile.bw?' · '+data.profile.bw+' kg':''}</div></div><button class="btn sm" data-act="change-goal">Change goal</button></div></div></section>
   <section><div class="section-title"><h2>Best lifts</h2><small>heaviest completed set</small></div>
   <div class="panel list">${(()=>{const l=EX.filter(e=>!e.u).map(e=>[e,bestKg(e.id)]).filter(a=>a[1]).sort((a,b)=>b[1]-a[1]).slice(0,6);return l.length?l.map(([e,b])=>`<div class="row"><div class="ava">${initials(e.name)}</div><div class="grow"><div class="t">${esc(e.name)}</div><div class="s">${e.m}</div></div><div class="num" style="font-weight:800">${b} kg</div></div>`).join(''):'<div class="empty"><b>No lifts yet</b>Your heaviest sets will be listed here.</div>'})()}</div></section>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn sm" for="rest-sel">Rest timer <select id="rest-sel" style="border:0;background:none;font-weight:700">${[60,90,120,180].map(s=>`<option value="${s}" ${ui.restTotal===s?'selected':''}>${s}s</option>`).join('')}</select></label><button class="btn sm danger" data-act="logout">Log out</button></div>`;
@@ -292,6 +418,12 @@ const A={
   'del-routine':b=>{const r=data.routines.find(x=>x.id===b.dataset.id);confirmBox('Delete routine?',`“${esc(r.name)}” will be removed. Your logged workouts stay in History.`,'Delete',()=>{data.routines=data.routines.filter(x=>x!==r);save();render();toast('Routine deleted')})},
   'del-hist':b=>confirmBox('Delete workout?','This removes it from your history and stats.','Delete',()=>{data.history=data.history.filter(x=>x.id!==b.dataset.id);save();render();toast('Workout deleted')}),
   'new-routine':()=>builder(),
+  'change-goal':()=>showOnboard(true),
+  'ob-pick':b=>{const k=b.dataset.k;ob.p[k]=k==='days'?+b.dataset.v:b.dataset.v;drawOnboard()},
+  'ob-next':()=>{ob.step++;drawOnboard();window.scrollTo(0,0)},
+  'ob-back':()=>{ob.step--;ob.err='';drawOnboard();window.scrollTo(0,0)},
+  'ob-cancel':enterApp,
+  'ob-done':obDone,
   'start-plan':b=>{const t=b.dataset.src==='r'?data.routines.find(x=>x.id===b.dataset.id):TPL.find(x=>x.id===b.dataset.id);startWorkout(t.name,t.x)},
   'start-empty':()=>startWorkout('Evening Workout'.replace('Evening',greet().split(' ')[1].replace(/^./,c=>c.toUpperCase())),[]),
   'add-ex':()=>picker(ids=>{ids.forEach(id=>{const p=lastSets(id);data.active.ex.push({id,sets:[0,1,2].map(j=>({kg:p[j]?p[j].kg:'',reps:p[j]?p[j].reps:(EXM[id].u?30:10),done:false}))})});save();render()}),
@@ -310,6 +442,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(b&&A[b.dataset.act]){e.preventDefault();A[b.dataset.act](b,e)}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal()});
 document.addEventListener('input',e=>{const t=e.target;
+  if(t.id==='ob-bw'){ob.p.bw=t.value;return}
   if(t.id==='ex-search'){ui.q=t.value;ui.focusSearch=true;render();return}
   if(t.id==='log-name'&&data.active){data.active.name=t.value;save();return}
   if(t.dataset.f&&data.active){const s=data.active.ex[+t.dataset.i].sets[+t.dataset.j];s[t.dataset.f]=t.value.replace(/[^\d.]/g,'');save();updateLogStats()}});

@@ -7,9 +7,11 @@ RepForge is a workout planner and progress tracker inspired by Hevy. It runs ent
 ## Features
 
 - **Login and registration** with input validation (accounts are stored in the browser's localStorage)
+- **Goal setup after sign-up**: users pick a goal (lose fat, build muscle, get stronger, gain weight, stay fit), their experience level, training days per week and optional bodyweight
+- **Personalised plan**: recommended routines and a weekly schedule based on the goal, daily protein and calorie targets, rep ranges, and nutrition / training / recovery tips
 - **Demo account** with sample workout history
 - **Exercise library** of 37 built-in exercises, searchable and filterable by muscle group, each with form cues and a link to video tutorials
-- **Suggested templates**: Full Body Starter, Upper / Lower, Push / Pull / Legs, 5×5 Strength A & B, Big Three, Dumbbells Only
+- **13 suggested templates**: Full Body Starter, Fat Burn Circuit, Mass Builder, Total Body Fitness, Upper / Lower, Push / Pull / Legs, 5×5 Strength A & B, Big Three, Dumbbells Only
 - **Custom routines** built from the exercise library
 - **Workout logger** with kg / reps per set, previous performance, add/remove sets and exercises, workout timer and rest timer
 - **Dashboard** with weekly workouts, volume, streak, personal records and an 8-week volume chart
