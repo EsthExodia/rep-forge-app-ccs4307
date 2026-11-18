@@ -45,6 +45,8 @@
         <form id="register-form" novalidate>
           <div class="field"><label for="reg-name">Full name</label><input class="input" id="reg-name" placeholder="Your name" autocomplete="name" required></div>
           <div class="field"><label for="reg-email">Email address</label><input class="input" id="reg-email" type="email" placeholder="you@example.com" autocomplete="email" required></div>
+          <div class="field-row"><div class="field"><label for="reg-gender">Gender</label><select class="input" id="reg-gender" required><option value="" selected disabled>Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Prefer not to say</option></select></div>
+          <div class="field"><label for="reg-dob">Birthday</label><input class="input" id="reg-dob" type="date" autocomplete="bday" required></div></div>
           <div class="field"><label for="reg-password">Password</label><div class="pw"><input class="input" id="reg-password" type="password" placeholder="At least 8 characters" autocomplete="new-password" required><button type="button" data-toggle="reg-password">Show</button></div></div>
           <div class="field"><label for="reg-confirm">Confirm password</label><div class="pw"><input class="input" id="reg-confirm" type="password" placeholder="Repeat your password" autocomplete="new-password" required><button type="button" data-toggle="reg-confirm">Show</button></div></div>
           <div id="reg-err" class="err" hidden></div>

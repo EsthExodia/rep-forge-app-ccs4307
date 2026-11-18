@@ -124,14 +124,32 @@ function recPlan(p){const d=p.days,l=p.level,R=(rot,extra=[])=>({rot,extra});
    case 'gain':return d<=3?R(['t_mass'],['t_5a','t_5b']):d===4?R(['t_upper','t_lower'],['t_mass']):R(['t_push','t_pull','t_legs'],['t_mass']);
    default:return d<=3?R(['t_fit','t_full'],['t_db']):R(['t_upper','t_lower','t_fit'],['t_circuit']);
   }}
-function recIds(p){const r=recPlan(p);return [...new Set([...r.rot,...r.extra])]}
+const CONFLICT={lose:['gain'],gain:['lose']};
+function blockedBy(k,goals){return (CONFLICT[k]||[]).find(c=>goals.includes(c))}
+const gl=p=>p.goals&&p.goals.length?p.goals:[p.goal];
+const goalNames=p=>gl(p).map(g=>GOALS[g].name).join(' + ');
+const isRecomp=p=>gl(p).includes('lose')&&(gl(p).includes('muscle')||gl(p).includes('strength'));
+function recIds(p){return [...new Set(gl(p).flatMap(g=>{const r=recPlan({...p,goal:g});return [...r.rot,...r.extra]}))].slice(0,6)}
 function schedule(p){const r=recPlan(p).rot,a=Array(7).fill(null);(PAT[p.days]||PAT[3]).forEach((di,k)=>a[di]=r[k%r.length]);return a}
 const fmtN=n=>n.toLocaleString('en-US');
-function targets(p){const G=GOALS[p.goal],bw=+p.bw||0;
+function energyGoal(p){const g=gl(p);
+  if(isRecomp(p))return{kcal:[-300,-200],cal:'200–300 under'};
+  for(const k of['lose','gain','muscle','strength','fit'])if(g.includes(k))return GOALS[k]}
+function maintFactor(){const u=users[me]||{},f={male:31,female:27}[u.gender]||29,a=u.dob?ageOf(u.dob):30;return f*(a>=60?.9:a>=40?.95:1)}
+function targets(p){const E=energyGoal(p),bw=+p.bw||0,gs=gl(p).map(g=>GOALS[g]);
+  const G={kcal:E.kcal,cal:E.cal,prot:[Math.max(...gs.map(x=>x.prot[0])),Math.max(...gs.map(x=>x.prot[1]))]};
   const prot=bw?`${Math.round(bw*G.prot[0])}–${Math.round(bw*G.prot[1])} g`:`${G.prot[0]}–${G.prot[1]} g/kg`;
-  let cal=G.cal;if(bw){const m=Math.round(bw*31/50)*50,lo=m+G.kcal[0],hi=m+G.kcal[1];cal=lo===hi?'≈ '+fmtN(lo):`≈ ${fmtN(lo)}–${fmtN(hi)}`}
+  let cal=G.cal;if(bw){const m=Math.round(bw*maintFactor()/50)*50,lo=m+G.kcal[0],hi=m+G.kcal[1];cal=lo===hi?'≈ '+fmtN(lo):`≈ ${fmtN(lo)}–${fmtN(hi)}`}
   return{prot,cal,protText:bw?`${Math.round(bw*G.prot[0])}–${Math.round(bw*G.prot[1])} g of protein a day (${G.prot[0]}–${G.prot[1]} g per kg)`:`${G.prot[0]}–${G.prot[1]} g of protein per kg of bodyweight a day`}}
-function tipsFor(p){const t=targets(p);return [...TIPS[p.goal],LVTIP[p.level]].map(([k,b,x])=>({k,b,p:x.replace('{prot}',t.protText)}))}
+function tipsFor(p){const t=targets(p),out=[],seenK=new Set(),seenB=new Set();
+  if(isRecomp(p)){out.push(['Nutrition','Lose fat and build muscle together','Eat about 200–300 kcal below maintenance, hit your protein and train hard. Progress is slower than chasing one goal at a time, but it works, especially for beginners.']);seenK.add('Nutrition')}
+  const multi=gl(p).length>1;
+  gl(p).forEach((g,gi)=>TIPS[g].forEach(tp=>{const[k,b]=tp;
+    if((k==='Nutrition'||k==='Protein')&&seenK.has(k))return;if(seenB.has(b))return;
+    if(multi&&gi>0&&out.filter(x=>x._g===g).length>=2)return;
+    seenK.add(k);seenB.add(b);const c=[...tp];c._g=g;out.push(c)}));
+  out.push(LVTIP[p.level]);
+  return out.map(([k,b,x])=>({k,b,p:x.replace('{prot}',t.protText)}))}
 
 /* ---------------- Utils ---------------- */
 const $=s=>document.querySelector(s);
@@ -176,16 +194,25 @@ $('#login-form').addEventListener('submit',async e=>{e.preventDefault();
   if(!em||!pw)return err('#login-err','Enter your email and password.');
   const u=users[em];if(!u||u.pw!==await hash(pw))return err('#login-err','That email and password don\'t match an account in this browser.');
   signIn(em)});
+try{$('#reg-dob').max=new Date().toISOString().slice(0,10)}catch(e){}
 $('#register-form').addEventListener('submit',async e=>{e.preventDefault();
-  const name=$('#reg-name').value.trim(),em=$('#reg-email').value.trim().toLowerCase(),pw=$('#reg-password').value,cf=$('#reg-confirm').value;
+  const name=$('#reg-name').value.trim(),em=$('#reg-email').value.trim().toLowerCase(),pw=$('#reg-password').value,cf=$('#reg-confirm').value,gender=$('#reg-gender').value,dob=$('#reg-dob').value;
   if(!name)return err('#reg-err','Enter your name.');
   if(!/^\S+@\S+\.\S+$/.test(em))return err('#reg-err','Enter a valid email address, like you@example.com.');
+  if(!gender)return err('#reg-err','Select your gender, or choose Prefer not to say.');
+  if(!dob)return err('#reg-err','Enter your birthday.');
+  const age=ageOf(dob);
+  if(isNaN(age)||age<0||age>100)return err('#reg-err','Enter a valid birthday.');
+  if(age<13)return err('#reg-err','You need to be at least 13 years old to create an account.');
   if(pw.length<8)return err('#reg-err','Use at least 8 characters for your password.');
   if(pw!==cf)return err('#reg-err','The two passwords don\'t match.');
   if(users[em])return err('#reg-err','An account with this email already exists. Log in instead.');
-  users[em]={name,pw:await hash(pw),created:Date.now(),data:{history:[],routines:[],active:null}};store.set('rf_users',users);
+  users[em]={name,gender,dob,pw:await hash(pw),created:Date.now(),data:{history:[],routines:[],active:null}};store.set('rf_users',users);
   signIn(em)});
+function ageOf(dob){const d=new Date(dob+'T00:00:00'),n=new Date();let a=n.getFullYear()-d.getFullYear();const m=n.getMonth()-d.getMonth();if(m<0||(m===0&&n.getDate()<d.getDate()))a--;return a}
+const GENDER={male:'Male',female:'Female',other:'Prefer not to say'};
 function signIn(em){me=em;data=users[em].data;store.set('rf_session',em);
+  if(data.profile&&!data.profile.goals){data.profile.goals=[data.profile.goal];save()}
   $('#side-name').textContent=users[em].name;$('#side-email').textContent=em;
   if(!data.profile){showOnboard(false);return}
   enterApp()}
@@ -193,16 +220,17 @@ function enterApp(){ui.view='home';$('#auth').hidden=true;$('#app').hidden=false
 
 /* ---------------- Onboarding ---------------- */
 const ob={step:1,edit:false,p:{}};
-function showOnboard(edit){ob.edit=!!edit;ob.step=1;ob.err='';ob.p=Object.assign({goal:null,level:null,days:3,bw:''},data.profile||{});if(ob.p.bw==null)ob.p.bw='';
+function showOnboard(edit){ob.edit=!!edit;ob.step=1;ob.err='';ob.p=Object.assign({goals:[],level:null,days:3,bw:''},JSON.parse(JSON.stringify(data.profile||{})));if(!ob.p.goals)ob.p.goals=ob.p.goal?[ob.p.goal]:[];if(ob.p.bw==null)ob.p.bw='';
   closeModal();$('#app').hidden=true;$('#resume').hidden=true;$('#rest').hidden=true;$('#auth').hidden=false;
   $('#v-login').hidden=$('#v-register').hidden=true;$('#auth-fine').hidden=true;$('#v-onboard').hidden=false;drawOnboard();window.scrollTo(0,0)}
 function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' ')[0]);
   const bar=`<div class="steps" aria-hidden="true">${[1,2,3].map(i=>`<i class="${i<=st?'on':''}"></i>`).join('')}</div><div class="eyebrow" style="margin-bottom:8px">Step ${st} of 3</div>`;
   const opt=(k,v,title,sub,icon)=>`<button type="button" class="opt" data-act="ob-pick" data-k="${k}" data-v="${v}" aria-pressed="${p[k]===v}">${icon?`<span class="gi">${icon}</span>`:''}<span class="grow"><b>${title}</b><small>${sub}</small></span></button>`;
   let h='';
-  if(st===1)h=`<h1>${ob.edit?'Change your goal':'What\'s your goal, '+first+'?'}</h1><p class="subtitle">We'll suggest routines and tips that fit it. You can change this any time in Profile.</p>
-    <div class="opts" role="group" aria-label="Goal">${Object.entries(GOALS).map(([k,g])=>opt('goal',k,g.name,g.sub,GI[k])).join('')}</div>
-    <div class="ob-nav">${ob.edit?'<button type="button" class="btn" data-act="ob-cancel">Cancel</button>':''}<button type="button" class="btn primary" data-act="ob-next" ${p.goal?'':'disabled'}>Continue</button></div>`;
+  if(st===1)h=`<h1>${ob.edit?'Change your goals':'What are your goals, '+first+'?'}</h1><p class="subtitle">Pick one or more. Your first pick is your main focus. You can change this any time in Profile.</p>
+    <div class="opts" role="group" aria-label="Goals">${Object.entries(GOALS).map(([k,g])=>{const i=p.goals.indexOf(k),bl=i<0&&blockedBy(k,p.goals);
+      return `<button type="button" class="opt" data-act="ob-goal" data-v="${k}" aria-pressed="${i>=0}" ${bl?'disabled':''}><span class="gi">${GI[k]}</span><span class="grow"><b>${g.name}</b><small>${bl?`<span class="why">Can't combine with ${GOALS[bl].name}</span>`:g.sub}</small></span><span class="ord">${i>=0?i+1:''}</span></button>`}).join('')}</div>
+    <div class="ob-nav">${ob.edit?'<button type="button" class="btn" data-act="ob-cancel">Cancel</button>':''}<button type="button" class="btn primary" data-act="ob-next" ${p.goals.length?'':'disabled'}>Continue</button></div>`;
   if(st===2)h=`<h1>How do you train?</h1><p class="subtitle">This sets the difficulty and how your week is split.</p>
     <p class="q">Experience</p><div class="opts" role="group" aria-label="Experience">${Object.entries(LEVELS).map(([k,l])=>opt('level',k,l.name,l.sub)).join('')}</div>
     <p class="q">Days per week</p><div class="daychips" role="group" aria-label="Days per week">${[2,3,4,5,6].map(d=>`<button type="button" data-act="ob-pick" data-k="days" data-v="${d}" aria-pressed="${p.days===d}">${d}</button>`).join('')}</div>
@@ -214,11 +242,11 @@ function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' 
   $('#v-onboard').innerHTML=bar+h}
 function obDone(){const raw=String(ob.p.bw).trim();const bw=raw?parseFloat(raw):null;
   if(raw&&!(bw>=30&&bw<=300)){ob.err='Enter a bodyweight between 30 and 300 kg, or leave it blank.';drawOnboard();return}
-  data.profile={goal:ob.p.goal,level:ob.p.level,days:ob.p.days,bw};save();enterApp();toast(ob.edit?'Plan updated':'Your plan is ready')}
+  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.days,bw};save();enterApp();toast(ob.edit?'Plan updated':'Your plan is ready')}
 function signOut(){store.del('rf_session');me=data=null;stopRest();$('#app').hidden=true;$('#resume').hidden=true;$('#auth').hidden=false;showAuth('login');$('#login-password').value=''}
 async function demo(){const em='demo@repforge.app';
-  if(!users[em]){users[em]={name:'Alex Reyes',pw:await hash('repforge123'),created:Date.now()-30*DAY,data:{history:seedHistory(),routines:[mkRoutine(TPL[1]),mkRoutine(TPL[2])],active:null}};store.set('rf_users',users)}
-  if(!users[em].data.profile){users[em].data.profile={goal:'muscle',level:'mid',days:4,bw:72};store.set('rf_users',users)}
+  if(!users[em]){users[em]={name:'Alex Reyes',gender:'male',dob:'2003-05-14',pw:await hash('repforge123'),created:Date.now()-30*DAY,data:{history:seedHistory(),routines:[mkRoutine(TPL[1]),mkRoutine(TPL[2])],active:null}};store.set('rf_users',users)}
+  if(!users[em].data.profile){users[em].data.profile={goal:'muscle',goals:['muscle','strength'],level:'mid',days:4,bw:72};store.set('rf_users',users)}
   signIn(em)}
 function seedHistory(){const base={bench:60,incline_db:22,latpull:50,db_row:24,lat_raise:8,pushdown:20,squat:80,rdl:70,bss:14,leg_ext:40,calf:60,hanging_leg:0};
   const days=[24,22,19,17,15,12,10,8,5,3,1];const out=[];
@@ -250,7 +278,7 @@ function vHome(){
   const wk=data.history.filter(w=>w.start>=ws);
   const pr=data.profile,sched=schedule(pr),ti=(new Date().getDay()+6)%7,todayT=sched[ti]&&TPLM[sched[ti]];
   const next=todayT||data.routines[0]||TPLM[recPlan(pr).rot[0]];const nextSrc=todayT||!data.routines[0]?'t':'r';
-  const nextLbl=todayT?'Today · '+GOALS[pr.goal].name:data.routines[0]?'Up next':'Suggested for you';
+  const nextLbl=todayT?'Today · '+goalNames(pr):data.routines[0]?'Up next':'Suggested for you';
   const weeks=[...Array(8)].map((_,i)=>{const s=ws-(7-i)*7*DAY;const list=data.history.filter(w=>w.start>=s&&w.start<s+7*DAY);return{s,v:list.reduce((a,w)=>a+vol(w),0)}});
   const max=Math.max(1,...weeks.map(w=>w.v));const gl=niceMax(max);
   const recent=data.history.slice(0,4);
@@ -276,13 +304,13 @@ function vHome(){
 function planSection(){const p=data.profile,G=GOALS[p.goal],t=targets(p),sc=schedule(p),ti=(new Date().getDay()+6)%7;
   return `<section><div class="section-title"><h2>Your plan</h2><button class="linkbtn" data-act="change-goal">Change goal</button></div>
   <div class="panel plan">
-    <div class="plan-top"><div class="plan-goal"><span class="gi">${GI[p.goal]}</span><div style="min-width:0"><div class="eyebrow">Your goal</div><h3>${G.name}</h3><div class="muted" style="font-size:13.5px">${LEVELS[p.level].name} · ${p.days} days a week${p.bw?` · ${p.bw} kg`:''}</div></div></div>
+    <div class="plan-top"><div class="plan-goal"><span class="gi">${GI[p.goal]}</span><div style="min-width:0"><div class="eyebrow">${gl(p).length>1?'Your goals':'Your goal'}</div><h3>${goalNames(p)}</h3><div class="muted" style="font-size:13.5px">${LEVELS[p.level].name} · ${p.days} days a week${p.bw?` · ${p.bw} kg`:''}</div></div></div>
       <div class="targets"><div class="target"><span>Protein / day</span><b>${t.prot}</b></div><div class="target"><span>Calories / day</span><b>${t.cal}${p.bw?'':' kcal'}</b></div><div class="target"><span>Reps</span><b>${G.reps}</b></div></div></div>
-    <p class="note">${p.bw?'Calories are a rough estimate from bodyweight only. Weigh yourself weekly and adjust by how your weight trends.':'Calories are relative to your maintenance. Add your bodyweight in Change goal to get exact gram and calorie targets.'}</p>
+    <p class="note">${p.bw?'Calories are a rough estimate from your bodyweight, gender and age. Weigh yourself weekly and adjust by how your weight trends.':'Calories are relative to your maintenance. Add your bodyweight in Change goal to get exact gram and calorie targets.'}</p>
     <div><div class="lbl" style="margin-bottom:8px">Your week</div><div class="week">${DAYS.map((n,i)=>`<div class="day ${sc[i]?'on':''} ${i===ti?'today':''}" title="${sc[i]?esc(TPLM[sc[i]].name):'Rest day'}"><span>${n}</span><b>${sc[i]?TPLM[sc[i]].s:'Rest'}</b></div>`).join('')}</div></div>
     <div><div class="lbl" style="margin-bottom:8px">Tips for your goal</div><div class="tips">${tipsFor(p).map(x=>`<div class="tip"><span class="k">${x.k}</span><b>${esc(x.b)}</b><p>${esc(x.p)}</p></div>`).join('')}</div></div>
   </div></section>
-  <section><div class="section-title"><h2>Recommended routines</h2><small>for ${G.name.toLowerCase()}</small></div>
+  <section><div class="section-title"><h2>Recommended routines</h2><small>for ${goalNames(p).toLowerCase()}</small></div>
     <div class="grid">${recIds(p).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>`}
 function niceMax(m){const p=Math.pow(10,Math.floor(Math.log10(m)));for(const f of[1,2,2.5,5,10])if(f*p>=m)return f*p;return 10*p}
 function histRow(w,extra=''){return `<div class="row"><div class="ava">${initials(w.name)}</div><div class="grow"><div class="t">${esc(w.name)}</div><div class="s">${fmtDate(w.start)} · ${fmtDur(w.end-w.start)} · ${w.ex.length} exercises</div></div><div class="num" style="font-weight:800">${kfmt(vol(w))} kg</div>${extra}</div>`}
@@ -295,7 +323,7 @@ function tplCard(t,mine,rec){
 function vWorkout(){
   return `<div class="head"><div><h1>Start a workout</h1><p>Pick one of your routines, a suggested template, or log freestyle.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="new-routine">New routine</button><button class="btn primary" data-act="start-empty">Start empty workout</button></div></div>
-  <section><div class="section-title"><h2>Recommended for you</h2><small>${GOALS[data.profile.goal].name} · ${data.profile.days} days a week</small></div>
+  <section><div class="section-title"><h2>Recommended for you</h2><small>${goalNames(data.profile)} · ${data.profile.days} days a week</small></div>
     <div class="grid">${recIds(data.profile).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>
   <section><div class="section-title"><h2>My routines</h2><small>${data.routines.length} saved</small></div>
     ${data.routines.length?`<div class="grid">${data.routines.map(r=>tplCard(r,true)).join('')}</div>`:'<div class="panel empty"><b>No routines yet</b>Save a template below or build your own with New routine.</div>'}</section>
@@ -321,8 +349,10 @@ function vProfile(){const u=users[me];
   <div class="panel stat"><div class="lbl">Total volume</div><div class="v num">${kfmt(data.history.reduce((a,w)=>a+vol(w),0))}<small>kg</small></div></div>
   <div class="panel stat"><div class="lbl">Time trained</div><div class="v num">${fmtDur(data.history.reduce((a,w)=>a+(w.end-w.start),0))}</div></div>
   <div class="panel stat"><div class="lbl">Routines</div><div class="v num">${data.routines.length}</div></div></div>
-  <section><div class="section-title"><h2>Goal</h2></div>
-  <div class="panel list"><div class="row"><div class="ava" style="background:var(--green);color:var(--on-green);border-color:var(--green)">${GI[data.profile.goal].replace('<svg','<svg width="22" height="22"')}</div><div class="grow"><div class="t">${GOALS[data.profile.goal].name}</div><div class="s">${LEVELS[data.profile.level].name} · ${data.profile.days} days a week${data.profile.bw?' · '+data.profile.bw+' kg':''}</div></div><button class="btn sm" data-act="change-goal">Change goal</button></div></div></section>
+  <section><div class="section-title"><h2>About you</h2></div>
+  <div class="panel list"><div class="row"><div class="grow"><div class="s">Gender</div><div class="t">${GENDER[u.gender]||'Not set'}</div></div><div class="grow"><div class="s">Birthday</div><div class="t">${u.dob?new Date(u.dob+'T00:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}):'Not set'}</div></div><div class="grow"><div class="s">Age</div><div class="t">${u.dob?ageOf(u.dob):'—'}</div></div></div></div></section>
+  <section><div class="section-title"><h2>${gl(data.profile).length>1?'Goals':'Goal'}</h2></div>
+  <div class="panel list"><div class="row"><div class="ava" style="background:var(--green);color:var(--on-green);border-color:var(--green)">${GI[data.profile.goal].replace('<svg','<svg width="22" height="22"')}</div><div class="grow"><div class="t" style="white-space:normal">${goalNames(data.profile)}</div><div class="s">${LEVELS[data.profile.level].name} · ${data.profile.days} days a week${data.profile.bw?' · '+data.profile.bw+' kg':''}</div></div><button class="btn sm" data-act="change-goal">Change goal</button></div></div></section>
   <section><div class="section-title"><h2>Best lifts</h2><small>heaviest completed set</small></div>
   <div class="panel list">${(()=>{const l=EX.filter(e=>!e.u).map(e=>[e,bestKg(e.id)]).filter(a=>a[1]).sort((a,b)=>b[1]-a[1]).slice(0,6);return l.length?l.map(([e,b])=>`<div class="row"><div class="ava">${initials(e.name)}</div><div class="grow"><div class="t">${esc(e.name)}</div><div class="s">${e.m}</div></div><div class="num" style="font-weight:800">${b} kg</div></div>`).join(''):'<div class="empty"><b>No lifts yet</b>Your heaviest sets will be listed here.</div>'})()}</div></section>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn sm" for="rest-sel">Rest timer <select id="rest-sel" style="border:0;background:none;font-weight:700">${[60,90,120,180].map(s=>`<option value="${s}" ${ui.restTotal===s?'selected':''}>${s}s</option>`).join('')}</select></label><button class="btn sm danger" data-act="logout">Log out</button></div>`;
@@ -419,6 +449,7 @@ const A={
   'del-hist':b=>confirmBox('Delete workout?','This removes it from your history and stats.','Delete',()=>{data.history=data.history.filter(x=>x.id!==b.dataset.id);save();render();toast('Workout deleted')}),
   'new-routine':()=>builder(),
   'change-goal':()=>showOnboard(true),
+  'ob-goal':b=>{const g=ob.p.goals,k=b.dataset.v,i=g.indexOf(k);if(i>=0)g.splice(i,1);else if(!blockedBy(k,g))g.push(k);drawOnboard()},
   'ob-pick':b=>{const k=b.dataset.k;ob.p[k]=k==='days'?+b.dataset.v:b.dataset.v;drawOnboard()},
   'ob-next':()=>{ob.step++;drawOnboard();window.scrollTo(0,0)},
   'ob-back':()=>{ob.step--;ob.err='';drawOnboard();window.scrollTo(0,0)},
