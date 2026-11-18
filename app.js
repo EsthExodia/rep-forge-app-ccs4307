@@ -130,7 +130,14 @@ const gl=p=>p.goals&&p.goals.length?p.goals:[p.goal];
 const goalNames=p=>gl(p).map(g=>GOALS[g].name).join(' + ');
 const isRecomp=p=>gl(p).includes('lose')&&(gl(p).includes('muscle')||gl(p).includes('strength'));
 function recIds(p){return [...new Set(gl(p).flatMap(g=>{const r=recPlan({...p,goal:g});return [...r.rot,...r.extra]}))].slice(0,6)}
-function schedule(p){const r=recPlan(p).rot,a=Array(7).fill(null);(PAT[p.days]||PAT[3]).forEach((di,k)=>a[di]=r[k%r.length]);return a}
+const wdaysOf=p=>p.wdays&&p.wdays.length?p.wdays:(PAT[p.days]||PAT[3]);
+function schedule(p){const r=recPlan(p).rot,a=Array(7).fill(null);wdaysOf(p).forEach((di,k)=>a[di]=r[k%r.length]);return a}
+const wdChips=(sel,act)=>`<div class="wdchips" role="group" aria-label="Training days">${DAYS.map((n,i)=>`<button type="button" data-act="${act}" data-d="${i}" aria-pressed="${sel.includes(i)}">${n}</button>`).join('')}</div>`;
+const wdText=w=>w.length<2?'Pick at least 2 days.':w.length>6?'Pick 6 days or fewer so you have a rest day.':`<b>${w.length} days a week</b> · ${w.map(i=>DAYS[i]).join(', ')}`;
+function editDays(){ui.tmpW=[...wdaysOf(data.profile)];drawDays()}
+function drawDays(){const w=ui.tmpW,ok=w.length>=2&&w.length<=6;openModal(`<div class="sheet-head"><div style="flex:1;min-width:0"><div class="eyebrow">Your schedule</div><h2>Training days</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></div>
+  <div class="sheet-body"><p class="muted" style="margin:0">Pick the days you can train. Your routines and 12-week plan follow these days.</p>${wdChips(w,'dm-wday')}<p class="wd-count" style="margin:0">${wdText(w)}</p></div>
+  <div class="sheet-foot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="days-save" ${ok?'':'disabled'}>Save days</button></div>`)}
 const fmtN=n=>n.toLocaleString('en-US');
 function energyGoal(p){const g=gl(p);
   if(isRecomp(p))return{kcal:[-300,-200],cal:'200–300 under'};
@@ -221,7 +228,7 @@ function enterApp(){ui.view='home';$('#auth').hidden=true;$('#app').hidden=false
 
 /* ---------------- Onboarding ---------------- */
 const ob={step:1,edit:false,p:{}};
-function showOnboard(edit){ob.edit=!!edit;ob.step=1;ob.err='';ob.p=Object.assign({goals:[],level:null,days:3,bw:''},JSON.parse(JSON.stringify(data.profile||{})));if(!ob.p.goals)ob.p.goals=ob.p.goal?[ob.p.goal]:[];if(ob.p.bw==null)ob.p.bw='';
+function showOnboard(edit){ob.edit=!!edit;ob.step=1;ob.err='';ob.p=Object.assign({goals:[],level:null,days:3,bw:''},JSON.parse(JSON.stringify(data.profile||{})));if(!ob.p.goals)ob.p.goals=ob.p.goal?[ob.p.goal]:[];ob.p.follow=data.program?(following()?'yes':'no'):'yes';ob.p.wdays=[...(data.profile?wdaysOf(data.profile):PAT[3])];if(ob.p.bw==null)ob.p.bw='';
   closeModal();$('#app').hidden=true;$('#resume').hidden=true;$('#rest').hidden=true;$('#auth').hidden=false;
   $('#v-login').hidden=$('#v-register').hidden=true;$('#auth-fine').hidden=true;$('#v-onboard').hidden=false;drawOnboard();window.scrollTo(0,0)}
 function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' ')[0]);
@@ -234,21 +241,22 @@ function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' 
     <div class="ob-nav">${ob.edit?'<button type="button" class="btn" data-act="ob-cancel">Cancel</button>':''}<button type="button" class="btn primary" data-act="ob-next" ${p.goals.length?'':'disabled'}>Continue</button></div>`;
   if(st===2)h=`<h1>How do you train?</h1><p class="subtitle">This sets the difficulty and how your week is split.</p>
     <p class="q">Experience</p><div class="opts" role="group" aria-label="Experience">${Object.entries(LEVELS).map(([k,l])=>opt('level',k,l.name,l.sub)).join('')}</div>
-    <p class="q">Days per week</p><div class="daychips" role="group" aria-label="Days per week">${[2,3,4,5,6].map(d=>`<button type="button" data-act="ob-pick" data-k="days" data-v="${d}" aria-pressed="${p.days===d}">${d}</button>`).join('')}</div>
-    <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-next" ${p.level?'':'disabled'}>Continue</button></div>`;
-  if(st===3)h=`<h1>Your bodyweight</h1><p class="subtitle">Optional. We use it to work out your daily protein target and a rough calorie estimate.</p>
+    <p class="q">Which days can you train?</p>${wdChips(p.wdays,'ob-wday')}<p class="wd-count">${wdText(p.wdays)}</p>
+    <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-next" ${p.level&&p.wdays.length>=2&&p.wdays.length<=6?'':'disabled'}>Continue</button></div>`;
+  if(st===3)h=`<h1>Almost done</h1><p class="subtitle">Your bodyweight is optional. We use it for your protein target and a rough calorie estimate.</p>
     <div class="field"><label for="ob-bw">Bodyweight</label><div class="unit"><input class="input" id="ob-bw" inputmode="decimal" placeholder="e.g. 70" value="${esc(p.bw)}"><span>kg</span></div></div>
+    <p class="q">Follow a 12-week plan?</p><div class="opts" role="group" aria-label="Follow a plan">${opt('follow','yes','Yes, follow a plan','RepForge sets your sets, reps and weights every week. Easy weeks are built in.')}${opt('follow','no','No, I\'ll train my own way','Use routines and log freely. You can start a plan any time.')}</div>
     ${ob.err?`<div class="err">${esc(ob.err)}</div>`:''}
     <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-done">${ob.edit?'Update my plan':'Build my plan'}</button></div>`;
   $('#v-onboard').innerHTML=bar+h}
 function obDone(){const raw=String(ob.p.bw).trim();const bw=raw?parseFloat(raw):null;
   if(raw&&!(bw>=30&&bw<=300)){ob.err='Enter a bodyweight between 30 and 300 kg, or leave it blank.';drawOnboard();return}
-  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.days,bw};ensureProgress();if(bw){const l=data.weighins[data.weighins.length-1];if(!l||l.kg!==bw)data.weighins.push({t:Date.now(),kg:bw})}save();enterApp();toast(ob.edit?'Plan updated':'Your plan is ready')}
+  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.wdays.length,wdays:[...ob.p.wdays].sort((a,b)=>a-b),bw};ensureProgress();if(ob.p.follow==='yes'&&!following()){data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null}else if(ob.p.follow==='no'&&following())data.program.active=false;if(bw){const l=data.weighins[data.weighins.length-1];if(!l||l.kg!==bw)data.weighins.push({t:Date.now(),kg:bw})}save();enterApp();toast(ob.edit?'Plan updated':following()?'Your 12-week plan starts this week':'Your plan is ready')}
 function signOut(){store.del('rf_session');me=data=null;stopRest();$('#app').hidden=true;$('#resume').hidden=true;$('#auth').hidden=false;showAuth('login');$('#login-password').value=''}
 async function demo(){const em='demo@repforge.app';
   if(!users[em]){users[em]={name:'Alex Reyes',gender:'male',dob:'2003-05-14',pw:await hash('repforge123'),created:Date.now()-30*DAY,data:{history:seedHistory(),routines:[mkRoutine(TPL[1]),mkRoutine(TPL[2])],active:null}};store.set('rf_users',users)}
   if(!users[em].data.profile){users[em].data.profile={goal:'muscle',goals:['muscle','strength'],level:'mid',days:4,bw:72};store.set('rf_users',users)}
-  {const d=users[em].data;if(!d.program){d.program={start:weekStart(Date.now())-4*7*DAY};d.liftGoals=[{id:uid(),ex:'bench',target:85,from:76,created:Date.now()-28*DAY},{id:uid(),ex:'squat',target:120,from:100,created:Date.now()-28*DAY}];d.bwGoal={target:75,from:70.5,created:Date.now()-28*DAY};d.weighins=[[28,70.5],[21,70.9],[14,71.4],[7,71.6],[1,72]].map(([a,kg])=>({t:Date.now()-a*DAY,kg}));d.baselines={};store.set('rf_users',users)}}
+  {const d=users[em].data;if(d.program&&d.program.active==null)d.program.active=true;if(!d.program){d.program={start:weekStart(Date.now())-4*7*DAY,active:true};d.liftGoals=[{id:uid(),ex:'bench',target:85,from:76,created:Date.now()-28*DAY},{id:uid(),ex:'squat',target:120,from:100,created:Date.now()-28*DAY}];d.bwGoal={target:75,from:70.5,created:Date.now()-28*DAY};d.weighins=[[28,70.5],[21,70.9],[14,71.4],[7,71.6],[1,72]].map(([a,kg])=>({t:Date.now()-a*DAY,kg}));d.baselines={};store.set('rf_users',users)}}
   signIn(em)}
 function seedHistory(){const base={bench:60,incline_db:22,latpull:50,db_row:24,lat_raise:8,pushdown:20,squat:80,rdl:70,bss:14,leg_ext:40,calf:60,hanging_leg:0};
   const days=[24,22,19,17,15,12,10,8,5,3,1];const out=[];
@@ -263,6 +271,67 @@ function lastSets(id){for(const w of data.history)for(const x of w.ex)if(x.id===
 function prCount(){const best={};let n=0;[...data.history].sort((a,b)=>a.start-b.start).forEach(w=>w.ex.forEach(x=>x.sets.forEach(s=>{if(!s.done||!(+s.kg))return;if(best[x.id]!=null&&+s.kg>best[x.id])n++;if(best[x.id]==null||+s.kg>best[x.id])best[x.id]=+s.kg})));return n}
 function streak(){const weeks=new Set(data.history.map(w=>weekStart(w.start)));let k=weekStart(Date.now());if(!weeks.has(k))k-=7*DAY;let n=0;while(weeks.has(k)){n++;k-=7*DAY}return n}
 
+/* ---------------- Glossary ---------------- */
+const GLOSS=[
+ ['Basics','rep','Rep','repetition','One full movement of an exercise, like lowering and pressing the bar once on bench press.','10 reps = doing the movement 10 times in a row.'],
+ ['Basics','set','Set','','A group of reps done back to back before resting.','"3 × 10" means 3 sets of 10 reps.'],
+ ['Basics','sxr','Sets × reps','','How RepForge writes a prescription: sets first, then reps, then the weight.','4 × 8 · 60 kg = 4 sets of 8 reps with 60 kg.'],
+ ['Basics','working','Working set','','A set that counts toward your training, done at the planned weight. Warm-up sets don\'t count.',''],
+ ['Basics','warmup','Warm-up set','','Lighter sets before your working sets to get your body ready and practise the movement.','Before 4 × 8 at 80 kg: empty bar × 10, 40 kg × 5, 60 kg × 3.'],
+ ['Basics','rest','Rest period','','The time you rest between sets. Heavy, low-rep sets need longer rest than light ones.','Main lifts 2–5 minutes, accessories 60–90 seconds.'],
+ ['Basics','compound','Compound / main lift','main lift','An exercise that works several joints and muscles at once and lets you move the most weight. Your program is built around these.','Squat, bench press, deadlift, overhead press, barbell row.'],
+ ['Basics','accessory','Accessory exercise','isolation','A smaller exercise that targets one muscle to support the main lifts or build a specific body part. Done for more reps with lighter weight.','Lateral raise, curls, leg extension, triceps pushdown.'],
+ ['Basics','bw','Bodyweight exercise','','An exercise where your own body is the weight. Progress by adding reps, then adding weight with a belt or vest.','Push-ups, pull-ups, dips, planks.'],
+ ['Basics','rom','Range of motion','ROM','How far you move during a rep. Full range of motion usually builds more strength and muscle.',''],
+ ['Effort','1rm','1RM','one-rep max','The most weight you can lift for a single rep with good form.','If your best squat for 1 rep is 120 kg, your 1RM is 120 kg.'],
+ ['Effort','e1rm','Estimated 1RM','e1RM','Your 1RM worked out from a heavier set of several reps, so you don\'t have to test a true max. RepForge uses the Epley formula.','100 kg × 5 reps → e1RM ≈ 117 kg.'],
+ ['Effort','epley','Epley formula','','The formula RepForge uses to estimate your 1RM: weight × (1 + reps ÷ 30). It is most accurate for sets of 10 reps or fewer.','80 kg × 8 → 80 × (1 + 8/30) ≈ 101 kg.'],
+ ['Effort','pct','% of 1RM','percent of max','How heavy a set is compared to your max. Higher % means heavier weight and fewer reps.','75% of a 100 kg max = 75 kg.'],
+ ['Effort','rir','RIR','reps in reserve','How many more reps you could have done when you stop the set. Lower RIR means the set was harder.','Stopping at 8 reps when you could do 10 = 2 RIR.'],
+ ['Effort','rpe','RPE','rate of perceived exertion','A 1–10 score for how hard a set felt. RPE 10 = nothing left, RPE 8 = about 2 reps left. It is RIR counted the other way.',''],
+ ['Effort','failure','Failure','','The point where you can\'t complete another rep with good form. Going to failure on every set makes recovery harder.',''],
+ ['Effort','amrap','AMRAP','as many reps as possible','One set where you do as many good reps as you can at a set weight. Used in test weeks to measure progress.','AMRAP at 60 kg → you got 11 reps.'],
+ ['Effort','pr','PR','personal record','Your best ever performance on a lift, such as the heaviest weight you have lifted.',''],
+ ['Programming','volume','Volume','','How much work you do. RepForge counts it as weight × reps added up for every completed set.','3 × 10 at 50 kg = 1,500 kg of volume.'],
+ ['Programming','intensity','Intensity','','How heavy the weight is, usually as a % of your 1RM. It does not mean how tired you feel.',''],
+ ['Programming','overload','Progressive overload','','Doing a little more over time: more weight, more reps or more sets. This is what makes you stronger and bigger.','Bench 60 kg × 8 this week, 62.5 kg × 8 next week.'],
+ ['Programming','periodization','Periodization','','Planning your training in stages instead of doing the same thing every week. Each stage has a job, and they build on each other.','RepForge splits 12 weeks into 3 phases of 4 weeks.'],
+ ['Programming','block','Training block','mesocycle','A planned stretch of training, here 12 weeks, that ends with a test to see how much you improved. Then you start a new block.',''],
+ ['Programming','phase','Phase','','A 4-week part of your block with one focus, like building volume or lifting heavier.',''],
+ ['Programming','accumulation','Accumulation','volume phase','A phase with more sets and reps at moderate weight. It builds muscle and work capacity for the heavier phases.',''],
+ ['Programming','intensification','Intensification','overload phase','A phase where the weight goes up and the reps come down, turning your base into strength.',''],
+ ['Programming','peak','Peak','realization','The final, heaviest phase before a test. Few reps, high weight, low volume so you are fresh.',''],
+ ['Programming','deload','Deload','D','A planned easy week with lighter weights and fewer sets. It lets your body recover so you come back stronger. Shown as D in your block.',''],
+ ['Programming','test','Test week','T','The last week of a block where you test a new max or do an AMRAP set to measure progress. Shown as T in your block.',''],
+ ['Programming','hypertrophy','Hypertrophy','','The scientific word for muscle growth. Usually trained with 6–15 reps close to failure.',''],
+ ['Programming','split','Training split','','How you divide your exercises across the week.','Full body (everything each session), Upper / Lower, Push / Pull / Legs.'],
+ ['Programming','frequency','Frequency','','How many times a week you train a muscle or lift. Twice a week is a good target for most people.',''],
+ ['Nutrition','calories','Calories','kcal','The energy in food. Eating more or less than you burn decides whether you gain or lose weight.',''],
+ ['Nutrition','maintenance','Maintenance calories','','How many calories you need to stay the same weight. RepForge gives a rough estimate from your bodyweight, gender and age.',''],
+ ['Nutrition','deficit','Calorie deficit','cut','Eating fewer calories than maintenance so you lose weight.','Maintenance 2,400 → eat 2,000 for a 400 kcal deficit.'],
+ ['Nutrition','surplus','Calorie surplus','bulk','Eating more calories than maintenance so you gain weight and have energy to build muscle.',''],
+ ['Nutrition','recomp','Recomp','body recomposition','Losing fat and building muscle at the same time with a small deficit, high protein and hard training. Works best for beginners.',''],
+ ['Nutrition','protein','Protein target','g/kg','How much protein to eat a day, given per kg of bodyweight. 1.6–2.2 g/kg supports muscle growth.','70 kg × 2 g/kg = 140 g of protein a day.'],
+ ['Nutrition','macros','Macros','macronutrients','Protein, carbs and fat: the three nutrients that make up your calories. Protein 4 kcal/g, carbs 4 kcal/g, fat 9 kcal/g.',''],
+ ['In the app','previous','Previous column','','In the workout logger, shows what you lifted for that set last time, so you know what to beat.',''],
+ ['In the app','projection','Projection','','RepForge\'s estimate of where your lift or bodyweight is heading, based on your logs, experience level and goal. It is a guide, not a promise.',''],
+ ['In the app','streak','Streak','','How many weeks in a row you have logged at least one workout.','']
+];
+const GLM=Object.fromEntries(GLOSS.map(g=>[g[1],g]));
+const T=(k,label)=>`<button type="button" class="term" data-act="term" data-k="${k}">${label||GLM[k][2]}</button>`;
+function termModal(k){const g=GLM[k];
+  openModal(`<div class="sheet-head"><div style="flex:1;min-width:0"><div class="eyebrow">${g[0]}</div><h2>${esc(g[2])}${g[3]?` <small class="muted" style="font-size:14px;font-weight:600">${esc(g[3])}</small>`:''}</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></div>
+  <div class="sheet-body"><p style="margin:0;font-size:15.5px">${esc(g[4])}</p>${g[5]?`<p class="muted" style="margin:0"><b style="color:var(--fg)">Example:</b> ${esc(g[5])}</p>`:''}</div>
+  <div class="sheet-foot"><button class="btn" data-act="glossary">Open glossary</button><button class="btn primary" data-act="close">Got it</button></div>`)}
+function vGlossary(){const q=(ui.gq||'').toLowerCase(),cat=ui.gc||'All',cats=['All',...new Set(GLOSS.map(g=>g[0]))];
+  const list=GLOSS.filter(g=>(cat==='All'||g[0]===cat)&&(!q||(g[2]+' '+g[3]+' '+g[4]).toLowerCase().includes(q)));
+  let last='',body='';list.forEach(g=>{if(g[0]!==last){body+=`<div class="gl-cat">${g[0]}</div>`;last=g[0]}
+    body+=`<article class="panel gl-item" id="gl-${g[1]}"><h3>${esc(g[2])}${g[3]?`<small>${esc(g[3])}</small>`:''}</h3><p>${esc(g[4])}</p>${g[5]?`<p class="ex"><b>Example:</b> ${esc(g[5])}</p>`:''}</article>`});
+  return `<div class="head"><div><h1>Glossary</h1><p>${GLOSS.length} training and nutrition terms explained in plain language.</p></div><button class="btn" data-act="go" data-v="${ui.glBack||'progress'}">Back</button></div>
+  <div class="filters"><div class="search">${ICON.search}<input class="input" id="gl-search" placeholder="Search terms like RIR, deload, 1RM" value="${esc(ui.gq||'')}" autocomplete="off"></div>
+  <div class="chips">${cats.map(c=>`<button class="chip" data-act="gl-cat" data-c="${c}" aria-pressed="${cat===c}">${c}</button>`).join('')}</div></div>
+  <div class="gl-list">${body||'<div class="panel empty"><b>No matches</b>Try another word.</div>'}</div>`}
+
 /* ---------------- Progress & periodization ---------------- */
 const BLOCKS={
  str:{name:'Strength block',ph:['Accumulation','Intensification','Peak'],pd:['Moderate weight, more sets. Builds the base you will peak from.','Heavier triples. Fewer reps, more weight on the bar.','Heavy doubles and singles, then test your new max in week 12.'],
@@ -275,10 +344,29 @@ const BLOCKS={
   w:[[3,12,60,'3'],[3,12,62.5,'3'],[3,12,65,'2–3'],[2,12,55,'4+','D'],[3,10,67.5,'2–3'],[3,10,70,'2'],[3,10,72.5,'2'],[2,10,60,'4+','D'],[3,8,72.5,'2'],[3,8,75,'2'],[3,8,77.5,'1–2'],[2,8,65,'3+','D']]}
 };
 const MAIN=['squat','bench','deadlift','ohp','row','front_squat','incline_db','rdl','hip_thrust','pullup'];
-function ensureProgress(){if(!data.program)data.program={start:weekStart(Date.now())};data.liftGoals=data.liftGoals||[];data.weighins=data.weighins||[];data.baselines=data.baselines||{};
+function ensureProgress(){data.liftGoals=data.liftGoals||[];data.weighins=data.weighins||[];data.baselines=data.baselines||{};
   if(data.profile&&data.profile.bw&&!data.weighins.length)data.weighins.push({t:Date.now(),kg:data.profile.bw})}
 function blockType(p){return {strength:'str',muscle:'hyp',gain:'hyp',lose:'cut',fit:'fit'}[p.goal]||'hyp'}
-const curWeek=()=>Math.floor((Date.now()-data.program.start)/(7*DAY))+1;
+const following=()=>!!(data.program&&data.program.active);
+const progStart=()=>following()?data.program.start:weekStart(Date.now());
+const curWeek=()=>Math.floor((Date.now()-progStart())/(7*DAY))+1;
+const segbar=cw=>`<div class="segbar" aria-hidden="true">${[...Array(12)].map((_,i)=>`<i class="${i+1<cw?'done':i+1===cw?'now':''}"></i>`).join('')}</div>`;
+const blockNo=()=>data.program&&data.program.block||1;
+const tdaysOf=()=>schedule(data.profile).map((t,i)=>t?i:-1).filter(i=>i>=0);
+const dayDate=(week,d)=>progStart()+(week-1)*7*DAY+d*DAY;
+function dayDone(week,dn){return following()&&data.history.some(h=>h.plan&&h.plan.week===week&&h.plan.day===dn&&(h.plan.blockNo||1)===blockNo()&&h.start>=progStart())}
+function nextPlanDay(){const sc=schedule(data.profile),td=tdaysOf(),ti=(new Date().getDay()+6)%7;for(let k=0;k<7;k++){const d=(ti+k)%7;if(sc[d]){const week=Math.floor((Date.now()+k*DAY-progStart())/(7*DAY))+1;return{d,k,t:TPLM[sc[d]],week,dn:td.indexOf(d)+1}}}return null}
+function startPlanDay(){const n=nextPlanDay();if(!n)return;ui.pw=Math.min(Math.max(n.week,1),12);ui.pday=n.d;startWeekDay()}
+function planHero(){const p=data.profile,B=BLOCKS[blockType(p)],cw=curWeek();
+  if(cw>12)return `<div class="hero-card"><div style="position:relative;z-index:1"><span class="plan-badge">Following a plan</span><h2>${B.name} complete</h2>${segbar(13)}<p>You finished all 12 weeks. Check your progress, then start the next block to keep going.</p></div><div class="hero-acts"><button class="btn on-navy" data-act="go" data-v="progress">See progress</button><button class="btn primary" data-act="block-restart">Start next block</button></div></div>`;
+  const n=nextPlanDay(),wk=Math.min(Math.max(n.week,1),12),R=weekRx(wk),when=n.k===0?'Today':n.k===1?'Tomorrow':DAYS[n.d];
+  const main=R.test&&R.main.reps===1?'test your new max':R.main.reps==='AMRAP'?`max reps @ ${R.main.pct}%`:`${R.main.sets} × ${R.main.reps} @ ${R.main.pct}%`;
+  return `<div class="hero-card"><div style="position:relative;z-index:1;min-width:0"><span class="plan-badge">Following your 12-week plan</span><h2 style="margin-top:12px">Block ${blockNo()} · Week ${cw} of 12</h2>${segbar(cw)}
+    <p><b style="color:#fff">${when}: Day ${n.dn} · ${esc(n.t.name)}</b> · ${B.ph[R.ph]} phase · main lifts ${main}${R.dl?' · deload week, go light':''}</p></div>
+    <div class="hero-acts"><button class="btn on-navy" data-act="go" data-v="progress">View plan</button><button class="btn primary" data-act="plan-start">${n.k===0?"Start today's workout":'Start next workout'}</button></div></div>`}
+function planOffer(){const B=BLOCKS[blockType(data.profile)];
+  return `<div class="panel offer"><div style="min-width:0"><div class="eyebrow">Optional</div><h3>Follow a 12-week plan</h3><p>Get a ${B.name.toLowerCase()} built around your goal (${esc(goalNames(data.profile))}). RepForge sets your sets, reps and weights every week, with easy weeks built in. You're not following a plan right now.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="go" data-v="progress">See how it works</button><button class="btn primary" data-act="plan-follow">Follow the plan</button></div></div>`}
 const e1=(kg,r)=>r<=1?kg:kg*(1+Math.min(r,12)/30);
 const r25=x=>Math.round(x/2.5)*2.5;
 function liftPts(id){const pts=[],b=data.baselines[id];if(b)pts.push({x:b.t,y:e1(b.kg,b.reps)});
@@ -313,25 +401,49 @@ function lineChart(o){const W=640,H=230,L=46,R=70,T=14,B=26;
     if(s.end){const q=s.pts[s.pts.length-1];if(o.goal==null||Math.abs(Y(q.y)-Y(o.goal))>14)g+=`<text class="ch-lbl" x="${X(q.x)+6}" y="${Y(q.y)+4}">${s.end}</text>`}});
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||'Chart')}">${g}</svg>`}
 
-function vProgress(){ensureProgress();const p=data.profile,B=BLOCKS[blockType(p)],cw=curWeek(),done=cw>12,cwc=Math.min(Math.max(cw,1),12);
-  const sel=ui.pw&&ui.pw<=12?ui.pw:cwc,wk=B.w[sel-1],phase=Math.floor((sel-1)/4),lifts=progressLifts();
+const ACC={str:[[3,10],[3,8],[3,8]],hyp:[[3,15],[3,12],[3,10]],cut:[[3,15],[3,12],[3,10]],fit:[[3,15],[3,12],[3,12]]};
+const PLAIN={
+ str:['Lots of sets of 5 at a medium weight. You build muscle and practise the lifts.','Fewer reps, more weight. Sets of 3 get heavier each week.','Very heavy sets of 1–2. In week 12 you test your new max.'],
+ hyp:['Sets of 10 with a few reps left in the tank. Lots of work to build muscle.','Sets of 8, a bit heavier, pushing closer to failure.','Sets of 6, heavy and hard. Week 12 is a max-reps test.'],
+ cut:['Sets of 10 at a steady weight while your diet starts.','Sets of 8. Keep the weight heavy so you keep your muscle.','Sets of 6, heavy with fewer sets so you can recover on less food.'],
+ fit:['Light sets of 12. Learn the movements and build the habit.','Sets of 10. Add a little weight each week.','Sets of 8 to lock in your progress.']
+};
+function weekRx(sel){const bt=blockType(data.profile),B=BLOCKS[bt],w=B.w[sel-1],ph=Math.floor((sel-1)/4),k=(sel-1)%4,dl=w[4]==='D',test=w[4]==='T';
+  const [as,ar]=ACC[bt][ph];return{bt,B,w,ph,dl,test,main:{sets:w[0],reps:w[1],pct:w[2],rir:w[3]},acc:{sets:dl?2:as,reps:ar,rir:dl?'4+':['3','2','1','2'][k],sec:dl?30:[30,40,45][ph]}}}
+const isMainLift=id=>EXM[id].e==='Barbell'&&MAIN.includes(id);
+const rnd=(kg)=>kg<10?Math.round(kg):r25(kg);
+function rxFor(id,R,ahead){const e=EXM[id],main=isMainLift(id),cur=curE1(id),proj=cur?projE1(id,ahead):0;
+  if(e.u)return{type:'acc',sets:R.acc.sets,reps:R.acc.sec,unit:'s',w:'Bodyweight',kg:'',rest:'60 s'};
+  if(main){const rest=R.bt==='str'?'3–5 min':'2–3 min';
+    if(R.test&&R.main.reps===1)return{type:'main',sets:1,reps:1,w:proj?`≈ ${r25(proj)} kg`:'New max',kg:proj?r25(proj):'',rest,note:'test'};
+    if(R.main.reps==='AMRAP')return{type:'main',sets:1,reps:'Max',w:proj?`${r25(proj*R.main.pct/100)} kg`:`${R.main.pct}% of max`,kg:proj?r25(proj*R.main.pct/100):'',rest};
+    return{type:'main',sets:R.main.sets,reps:R.main.reps,w:proj?`${r25(proj*R.main.pct/100)} kg`:`${R.main.pct}% of max`,kg:proj?r25(proj*R.main.pct/100):'',rest}}
+  const reps=R.acc.reps,rir=parseInt(R.acc.rir)||2;
+  if(e.e==='Bodyweight')return{type:'acc',sets:R.acc.sets,reps,w:'Bodyweight',kg:'',rest:'60–90 s'};
+  if(!cur)return{type:'acc',sets:R.acc.sets,reps,w:'—',kg:'',rest:'60–90 s',nolog:true};
+  const kg=rnd(proj/(1+(reps+rir)/30)*(R.dl?.85:1));return{type:'acc',sets:R.acc.sets,reps,w:kg+' kg',kg,rest:'60–90 s'}}
+function vProgress(){ensureProgress();const fol=following(),p=data.profile,cw=curWeek(),done=cw>12,cwc=Math.min(Math.max(cw,1),12);
+  const sel=ui.pw&&ui.pw<=12?ui.pw:cwc,R=weekRx(sel),B=R.B,wk=R.w,phase=R.ph,lifts=progressLifts();
   if(!ui.pl||!lifts.includes(ui.pl))ui.pl=lifts[0];
-  const wDate=data.program.start+(sel-1)*7*DAY,ahead=Math.max(0,Math.round((wDate-Date.now())/(7*DAY)));
-  const kind=wk[4]==='D'?'Deload':wk[4]==='T'?'Test':'';
-  const rxTxt=`${wk[0]} × ${wk[1]} @ ${wk[2]}%`;
-  let rows=lifts.map(id=>{const now=curE1(id),at=projE1(id,ahead);let tgt;
-    if(wk[4]==='T'&&wk[1]===1)tgt=`Max ≈ ${r25(at)} kg`;else if(wk[1]==='AMRAP')tgt=`AMRAP @ ${r25(at*wk[2]/100)} kg`;else tgt=`${wk[0]} × ${wk[1]} @ ${r25(at*wk[2]/100)} kg`;
-    return `<tr><td>${esc(EXM[id].name)}</td><td class="r">${Math.round(now)} kg</td><td class="r"><b>${tgt}</b></td></tr>`}).join('');
-  // chart for selected lift
-  let liftChart='';if(ui.pl){const id=ui.pl,pts=liftPts(id).filter(q=>q.x>=Date.now()-16*7*DAY),end=Math.max(data.program.start+12*7*DAY,Date.now()+8*7*DAY),wks=Math.ceil((end-Date.now())/(7*DAY));
+  const wDate=progStart()+(sel-1)*7*DAY,ahead=Math.max(0,Math.round((wDate-Date.now())/(7*DAY)));
+  const kind=R.dl?'Deload':R.test?'Test week':'';
+  // day plan
+  const sc=schedule(p),tdays=sc.map((t,i)=>t?i:-1).filter(i=>i>=0),ti=(new Date().getDay()+6)%7;
+  if(ui.pday==null||!tdays.includes(ui.pday))ui.pday=tdays.includes(ti)?ti:tdays[0];
+  const dayT=TPLM[sc[ui.pday]],dk=tdays.indexOf(ui.pday),dTs=dayDate(sel,ui.pday),todayTs=weekStart(Date.now())+ti*DAY;
+  const dStat=!fol?'':dayDone(sel,dk+1)?'<span class="st done">✓ Done</span>':dTs===todayTs?'<span class="st today">Today</span>':dTs<todayTs?'<span class="st">Not logged</span>':'<span class="st">Upcoming</span>';const dayRows=dayT.x.map(([id])=>({id,...rxFor(id,R,ahead)}));
+  const anyNoLog=dayRows.some(r=>r.nolog);
+  const mainLine=R.test&&R.main.reps===1?`Work up to a new 1-rep max (${T('1rm','1RM')}).`:R.main.reps==='AMRAP'?`1 set of as many reps as you can (${T('amrap','AMRAP')}) at ${R.main.pct}% of your max.`:`${R.main.sets} sets × ${R.main.reps} reps at ${R.main.pct}% of your max. Stop with ${R.main.rir==='1'?'1 rep':R.main.rir+' reps'} left (${T('rir','RIR')}).`;
+  const accLine=`${R.acc.sets} sets × ${R.acc.reps} reps. Stop with ${R.acc.rir==='1'?'1 rep':R.acc.rir+' reps'} left.`;
+  // chart
+  let liftChart='';if(ui.pl){const id=ui.pl,pts=liftPts(id).filter(q=>q.x>=Date.now()-16*7*DAY),end=Math.max(progStart()+12*7*DAY,Date.now()+8*7*DAY),wks=Math.ceil((end-Date.now())/(7*DAY));
     const proj=[];for(let i=0;i<=wks;i++)proj.push({x:Date.now()+i*7*DAY,y:projE1(id,i)});
     const lg=data.liftGoals.find(g=>g.ex===id);const endV=proj[proj.length-1].y;
-    liftChart=`<div class="panel chartbox"><div class="rx" style="margin-bottom:12px"><div><span class="lbl">Est. 1RM now</span><span class="big">${Math.round(curE1(id))} kg</span></div><div><span class="lbl">Projected ${new Date(end).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><span class="big">${Math.round(endV)} kg</span></div><div><span class="lbl">Rate</span><span class="big">+${(liftRate(id)*100).toFixed(1)}%<small class="muted" style="font-size:14px"> /wk</small></span></div></div>
+    liftChart=`<div class="panel chartbox"><div class="rx" style="margin-bottom:12px"><div><span class="lbl">${T('e1rm','Est. 1RM')} now</span><span class="big">${Math.round(curE1(id))} kg</span></div><div><span class="lbl">Projected ${new Date(end).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><span class="big">${Math.round(endV)} kg</span></div><div><span class="lbl">Rate</span><span class="big">+${(liftRate(id)*100).toFixed(1)}%<small class="muted" style="font-size:14px"> /wk</small></span></div></div>
       ${lineChart({series:[{pts,cls:'ch-act',dots:true},{pts:proj,cls:'ch-proj',end:Math.round(endV)+' kg'}],goal:lg?lg.target:null,label:EXM[id].name+' projection'})}
       <div class="legend"><span><i></i>Est. 1RM from your best set each session</span><span><i class="p"></i>Projection</span>${lg?'<span><i class="g"></i>Goal</span>':''}</div></div>`}
-  // goals
   const gCards=data.liftGoals.map(g=>{const cur=curE1(g.ex),w=weeksToLift(g.ex,g.target),pct=Math.max(0,Math.min(100,(cur-g.from)/(g.target-g.from)*100||0)),ok=cur>=g.target;
-    return `<article class="panel goal"><div class="goal-top"><div class="ava">${initials(EXM[g.ex].name)}</div><div class="grow"><div class="t">${esc(EXM[g.ex].name)}</div><div class="s muted" style="font-size:13px">Estimated 1RM goal</div></div><div class="big">${g.target} kg</div><button class="x" aria-label="Delete goal" data-act="goal-del" data-id="${g.id}">✕</button></div>
+    return `<article class="panel goal"><div class="goal-top"><div class="ava">${initials(EXM[g.ex].name)}</div><div class="grow"><div class="t">${esc(EXM[g.ex].name)}</div><div class="s muted" style="font-size:13px">${T('e1rm','Estimated 1RM')} goal</div></div><div class="big">${g.target} kg</div><button class="x" aria-label="Delete goal" data-act="goal-del" data-id="${g.id}">✕</button></div>
       <div class="pbar"><i style="width:${ok?100:pct}%"></i></div>
       <div class="goal-meta"><span>Now <b>${Math.round(cur)} kg</b> · started ${Math.round(g.from)} kg</span><span>${ok?'<b style="color:var(--green-ink)">Goal reached</b>':w==null?'Over 3 years at this rate':'Predicted <b>'+fmtWhen(w)+'</b>'}</span></div></article>`}).join('');
   let bwCard='';const bg=data.bwGoal,bw=curBW();
@@ -342,22 +454,40 @@ function vProgress(){ensureProgress();const p=data.profile,B=BLOCKS[blockType(p)
       <div class="goal-meta"><span>Now <b>${bw} kg</b> · started ${bg.from} kg</span><span>${ok?'<b style="color:var(--green-ink)">Goal reached</b>':wks==null?'<b style="color:var(--danger)">Your current goals won\'t move your weight this way. Change goal to match.</b>':'Predicted <b>'+fmtWhen(wks)+'</b>'}</span></div>
       ${pts.length?lineChart({series:[{pts,cls:'ch-act',dots:true},{pts:proj,cls:'ch-proj'}],goal:bg.target,minPad:.5,label:'Bodyweight'}):''}
       <form class="inline-form" data-form="weighin"><div class="unit"><input class="input" id="wi-kg" inputmode="decimal" placeholder="Today's weight" aria-label="Today's weight"><span>kg</span></div><button class="btn primary sm" style="height:40px" type="submit">Log weight</button></form></article>`}
-  return `<div class="head"><div><div class="eyebrow">${B.name}</div><h1>Progress</h1><p>${done?'Your 12-week block is complete. Start the next one to keep progressing.':`Week ${cw<1?1:cw} of 12 · ${B.ph[Math.floor((cwc-1)/4)]} phase · started ${new Date(data.program.start).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`}</p></div>
-    <button class="btn" data-act="block-restart">${done?'Start next block':'Restart block'}</button></div>
-  <section><div class="section-title"><h2>Your 12-week block</h2><small>tap a week to see its plan</small></div>
+  const phaseKeys={str:['accumulation','intensification','peak'],hyp:['accumulation','intensification','peak'],cut:['accumulation','intensification','peak'],fit:['accumulation','intensification','peak']}[R.bt];
+  return `<div class="head"><div>${fol?'<span class="plan-badge" style="margin-bottom:10px">Following · Block '+blockNo()+' · '+B.name+'</span>':`<div class="eyebrow">Preview · ${B.name}</div>`}<h1>Progress</h1><p>${!fol?'You\'re not following a plan. This is what your 12 weeks would look like if you started this week.':done?'Your 12-week block is complete. Start the next one to keep progressing.':`Week ${cw<1?1:cw} of 12 · ${B.ph[Math.floor((cwc-1)/4)]} phase · started ${new Date(progStart()).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`}</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="glossary">Glossary</button>${fol?`<button class="btn" data-act="block-restart">${done?'Start next block':'Restart block'}</button><button class="btn danger" data-act="plan-stop">Stop plan</button>`:'<button class="btn primary" data-act="plan-follow">Follow this plan</button>'}</div></div>
+  <section><div class="section-title"><h2>How your block works</h2><small>${T('periodization','what is periodization?')}</small></div>
+    <div class="panel blk-panel">
+      <p style="margin:0;font-size:15px">${fol?'':'If you follow it, '}your next 12 weeks are split into 3 phases of 4 weeks. Each week the main lifts get a little heavier. The 4th week of each phase is an easy week so you recover, and week 12 tests how much stronger you got.</p>
+      <div class="how">${B.ph.map((n,i)=>`<div class="how-card ${i===phase?'on':''}"><span class="k">Weeks ${i*4+1}–${i*4+4}</span><b>${T(phaseKeys[i],n)}</b><p>${PLAIN[R.bt][i]}</p><span class="sch">Main lifts: ${B.w[i*4][0]} × ${B.w[i*4][1]} at ${B.w[i*4][2]}–${B.w[i*4+2][2]}%</span><span class="sch">Accessories: ${ACC[R.bt][i][0]} × ${ACC[R.bt][i][1]}</span></div>`).join('')}</div>
+      <div class="legend-row"><span><b>Main lifts</b> = big barbell lifts (${T('compound','what?')})</span><span><b>Accessories</b> = everything else (${T('accessory','what?')})</span><span><b>D</b> = ${T('deload','deload')}</span><span><b>T</b> = ${T('test','test week')}</span><span><b>%</b> = ${T('pct','% of your max')}</span></div>
+    </div></section>
+  <section><div class="section-title"><h2>Week by week</h2><small>tap a week</small></div>
     <div class="panel blk-panel">
       <div class="blk">${B.ph.map((n,i)=>`<div class="ph ${i===phase?'on':''}">${n}</div>`).join('')}
-        ${B.w.map((w,i)=>{const n=i+1;return `<button class="wk ${n<cw?'past':''} ${n===cw?'now':''} ${w[4]?'dl':''}" data-act="pw-sel" data-w="${n}" aria-pressed="${n===sel}" aria-label="Week ${n}"><span>${n}</span><small class="${w[4]?'':'pc'}">${w[4]||w[2]+'%'}</small></button>`}).join('')}</div>
-      <div class="rx"><div><span class="lbl">Week ${sel}${kind?' · '+kind:''}${sel===cw?' · this week':''}</span><span class="big">${wk[4]==='T'&&wk[1]===1?'Test your 1RM':wk[1]==='AMRAP'?'AMRAP @ '+wk[2]+'%':rxTxt}</span></div><div><span class="lbl">Reps in reserve</span><span class="big">${wk[3]}</span></div></div>
-      <p class="muted" style="margin:-6px 0 0;font-size:14px">${kind==='Deload'?'Lighter week. Cut volume and weight so you recover and come back stronger.':kind==='Test'?(wk[1]===1?'Work up in singles to a new max. Stop when your form breaks down.':'Do one set of as many good reps as you can. This shows how much you have improved.'):B.pd[phase]} Apply this to your main lifts; keep accessories in their usual rep range.</p>
-      ${lifts.length?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Lift</th><th class="r">Est. 1RM now</th><th class="r">Week ${sel} target</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty" style="padding:12px"><b>No lift data yet</b>Log a workout or add a lift goal, and this table fills in your working weights.</div>'}
+        ${B.w.map((w,i)=>{const n=i+1;return `<button class="wk ${fol&&n<cw?'past':''} ${fol&&n===cw?'now':''} ${w[4]?'dl':''}" data-act="pw-sel" data-w="${n}" aria-pressed="${n===sel}" aria-label="Week ${n}"><span>${n}</span><small class="${w[4]?'':'pc'}">${w[4]||w[2]+'%'}</small></button>`}).join('')}</div>
+      <div class="wk-sum"><h3>Week ${sel} · ${B.ph[phase]}${kind?' · '+kind:''}${fol&&sel===cw?' <span class="tag g" style="vertical-align:3px">This week</span>':''}</h3>
+        ${kind==='Deload'?'<p class="muted" style="margin:0">Easy week: lighter weights and fewer sets. Don\'t push hard; the goal is to recover.</p>':''}
+        <div class="wk-line"><span class="tag g">Main lifts</span><span>${mainLine}</span></div>
+        <div class="wk-line"><span class="tag">Accessories</span><span>${accLine}</span></div></div>
+      <div class="days-row"><span class="muted">Training days:</span><b>${tdays.map(i=>DAYS[i]).join(', ')}</b><button class="linkbtn" data-act="days-edit">Change days</button></div>
+      <div class="daynav"><div class="crumb">Block ${blockNo()}<span class="sep">›</span>Week ${sel}<span class="sep">›</span>Day ${dk+1}<span>of ${tdays.length} · ${DAYS[ui.pday]}, ${new Date(dayDate(sel,ui.pday)).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span>${dStat}</div>
+        <div class="arrows"><button class="btn sm" data-act="day-step" data-dir="-1" aria-label="Previous day" ${sel===1&&dk===0?'disabled':''}>‹</button><button class="btn sm" data-act="day-step" data-dir="1" aria-label="Next day" ${sel===12&&dk===tdays.length-1?'disabled':''}>›</button></div></div>
+      <div class="day-tabs">${tdays.map((i,k)=>`<button class="chip" data-act="pday" data-d="${i}" aria-pressed="${ui.pday===i}"><span>Day ${k+1} · ${esc(TPLM[sc[i]].name)}</span><small>${DAYS[i]} ${new Date(dayDate(sel,i)).toLocaleDateString(undefined,{month:'short',day:'numeric'})}${dayDone(sel,k+1)?' · ✓ Done':''}</small></button>`).join('')}</div>
+      <div style="overflow-x:auto"><table class="tbl daytbl"><thead><tr><th>Exercise</th><th class="r">Sets × reps</th><th class="r">Weight</th><th class="r rcol">Rest</th></tr></thead><tbody>
+        ${dayRows.map(r=>`<tr class="${r.type}"><td>${esc(EXM[r.id].name)}<span class="kind">${r.type==='main'?'Main':'Acc'}</span></td><td class="r">${r.sets} × ${r.reps}${r.unit||''}</td><td class="r"><b>${r.w}</b></td><td class="r rcol">${r.rest}</td></tr>`).join('')}</tbody></table></div>
+      ${anyNoLog?'<p class="hint" style="margin:0">— means you haven\'t logged that exercise yet. Pick a weight you can lift for the reps shown with 2 reps to spare; next time RepForge will suggest one.</p>':''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="start-week-day">Start Week ${sel} · Day ${dk+1} with these numbers</button></div>
     </div></section>
   <section><div class="section-title"><h2>Lift projection</h2><small>based on your logs, level and goal</small></div>
     ${lifts.length?`<div class="chips" style="margin-bottom:12px">${lifts.map(id=>`<button class="chip" data-act="pl-sel" data-id="${id}" aria-pressed="${ui.pl===id}">${esc(EXM[id].name)}</button>`).join('')}</div>${liftChart}`:'<div class="panel empty"><b>Nothing to project yet</b>Log a few workouts and your estimated maxes and projections show up here.</div>'}</section>
   <section><div class="section-title"><h2>Goals</h2><button class="btn sm primary" data-act="goal-add">Add goal</button></div>
     ${gCards||bwCard?`<div class="goals">${bwCard}${gCards}</div>`:'<div class="panel empty"><b>No goals yet</b>Set a target like a 100 kg bench or a bodyweight of 75 kg and RepForge predicts when you will hit it.</div>'}</section>
-  <p class="muted" style="font-size:12.5px;margin:0">Estimated 1RM uses the Epley formula on your best set each session. Projections assume you train consistently and slow down over time; real progress varies.</p>`}
-
+  <p class="muted" style="font-size:12.5px;margin:0">${T('e1rm','Estimated 1RM')} uses the ${T('epley','Epley formula')} on your best set each session. Projections assume you train consistently and slow down over time; real progress varies.</p>`}
+function startWeekDay(){const p=data.profile,sel=ui.pw&&ui.pw<=12?ui.pw:Math.min(Math.max(curWeek(),1),12),R=weekRx(sel),sc=schedule(p),t=TPLM[sc[ui.pday]];
+  const ahead=Math.max(0,Math.round((progStart()+(sel-1)*7*DAY-Date.now())/(7*DAY)));
+  const dn=tdaysOf().indexOf(ui.pday)+1;startWorkout(`${t.name} · W${sel} D${dn}`,t.x.map(([id])=>{const r=rxFor(id,R,ahead);return [id,r.sets,typeof r.reps==='number'?r.reps:'',r.kg]}),following()?{week:sel,day:dn,block:R.B.name,blockNo:blockNo()}:null)}
 function addGoal(type){type=type||'lift';const bw=curBW();
   const opts=EX.filter(e=>!e.u).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
   openModal(`<div class="sheet-head"><h2>Add goal</h2><button class="x" data-act="close" aria-label="Close">✕</button></div>
@@ -385,10 +515,11 @@ function goalSave(t){const E=m=>{const e=$('#g-err');e.textContent=m;e.hidden=fa
 
 /* ---------------- Render ---------------- */
 function render(){
-  const navHtml=NAV.map(([v,l])=>`<button type="button" data-act="go" data-v="${v}" ${ui.view===v||(v==='workout'&&ui.view==='log')?'aria-current="page"':''}>${ICON[v]}<span>${l}</span></button>`).join('');
+  const navHtml=NAV.map(([v,l])=>`<button type="button" data-act="go" data-v="${v}" ${ui.view===v||(v==='workout'&&ui.view==='log')||(v==='progress'&&ui.view==='glossary')?'aria-current="page"':''}>${ICON[v]}<span>${l}</span></button>`).join('');
   $('#nav').innerHTML=navHtml;$('#tabbar').innerHTML=navHtml;
+  {const sp=$('#side-plan');if(data.profile&&following()){const cw=curWeek();sp.innerHTML=`<span>Following 12-week plan</span><b>${cw>12?'Block '+blockNo()+' complete':'Block '+blockNo()+' · Week '+cw+' of 12'}</b>${segbar(cw)}`;sp.hidden=false}else sp.hidden=true}
   const v=$('#view');
-  v.innerHTML=({progress:vProgress,home:vHome,workout:vWorkout,exercises:vExercises,history:vHistory,profile:vProfile,log:vLog}[ui.view]||vHome)();
+  v.innerHTML=({glossary:vGlossary,progress:vProgress,home:vHome,workout:vWorkout,exercises:vExercises,history:vHistory,profile:vProfile,log:vLog}[ui.view]||vHome)();
   const r=$('#resume');r.hidden=!(data.active&&ui.view!=='log');
   if(!r.hidden)r.innerHTML=`<span>${esc(data.active.name)} in progress</span><span class="num" data-elapsed>${clock(Date.now()-data.active.start)}</span>`;
   if(ui.view==='exercises'){const s=$('#ex-search');if(s&&ui.focusSearch){s.focus();s.setSelectionRange(s.value.length,s.value.length);ui.focusSearch=false}}
@@ -406,8 +537,9 @@ function vHome(){
   const recent=data.history.slice(0,4);
   return `
   <div class="head"><div><div class="eyebrow">${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div><h1>${greet()}, ${esc(users[me].name.split(' ')[0])}.</h1></div></div>
-  ${data.active?`<div class="hero-card"><div><div class="eyebrow">In progress</div><h2>${esc(data.active.name)}</h2><p>Started ${clock(now-data.active.start)} ago · ${data.active.ex.length} exercises</p></div><button class="btn primary" data-act="go" data-v="log">Resume workout</button></div>`:
+  ${data.active?`<div class="hero-card"><div><div class="eyebrow">In progress</div><h2>${esc(data.active.name)}</h2><p>Started ${clock(now-data.active.start)} ago · ${data.active.ex.length} exercises</p></div><button class="btn primary" data-act="go" data-v="log">Resume workout</button></div>`:following()?planHero():
   `<div class="hero-card"><div><div class="eyebrow">${nextLbl}</div><h2>${esc(next.name)}</h2><p>${next.x.length} exercises · about ${next.x.reduce((a,x)=>a+x[1],0)*3} min</p><div class="chips-inline">${next.x.map(x=>`<span>${esc(EXM[x[0]].name)}</span>`).join('')}</div></div><button class="btn primary" data-act="start-plan" data-src="${nextSrc}" data-id="${next.id}">Start workout</button></div>`}
+  ${following()?'':planOffer()}
   ${planSection()}
   <div class="stats">
     <div class="panel stat"><div class="lbl">Workouts this week</div><div class="v num">${wk.length}</div></div>
@@ -424,18 +556,18 @@ function vHome(){
     <div class="panel list">${recent.length?recent.map(histRow).join(''):'<div class="empty"><b>No workouts yet</b>Finish your first session and it will show up here.</div>'}</div></section>`;
 }
 function planSection(){const p=data.profile,G=GOALS[p.goal],t=targets(p),sc=schedule(p),ti=(new Date().getDay()+6)%7;
-  return `<section><div class="section-title"><h2>Your plan</h2><button class="linkbtn" data-act="change-goal">Change goal</button></div>
+  return `<section><div class="section-title"><h2>Your plan</h2><div style="display:flex;gap:6px"><button class="linkbtn" data-act="glossary">Glossary</button><button class="linkbtn" data-act="change-goal">Change goal</button></div></div>
   <div class="panel plan">
     <div class="plan-top"><div class="plan-goal"><span class="gi">${GI[p.goal]}</span><div style="min-width:0"><div class="eyebrow">${gl(p).length>1?'Your goals':'Your goal'}</div><h3>${goalNames(p)}</h3><div class="muted" style="font-size:13.5px">${LEVELS[p.level].name} · ${p.days} days a week${p.bw?` · ${p.bw} kg`:''}</div></div></div>
-      <div class="targets"><div class="target"><span>Protein / day</span><b>${t.prot}</b></div><div class="target"><span>Calories / day</span><b>${t.cal}${p.bw?'':' kcal'}</b></div><div class="target"><span>Reps</span><b>${G.reps}</b></div></div></div>
+      <div class="targets"><div class="target"><span>${T('protein','Protein')} / day</span><b>${t.prot}</b></div><div class="target"><span>${T('calories','Calories')} / day</span><b>${t.cal}${p.bw?'':' kcal'}</b></div><div class="target"><span>Reps</span><b>${G.reps}</b></div></div></div>
     <p class="note">${p.bw?'Calories are a rough estimate from your bodyweight, gender and age. Weigh yourself weekly and adjust by how your weight trends.':'Calories are relative to your maintenance. Add your bodyweight in Change goal to get exact gram and calorie targets.'}</p>
-    <div><div class="lbl" style="margin-bottom:8px">Your week</div><div class="week">${DAYS.map((n,i)=>`<div class="day ${sc[i]?'on':''} ${i===ti?'today':''}" title="${sc[i]?esc(TPLM[sc[i]].name):'Rest day'}"><span>${n}</span><b>${sc[i]?TPLM[sc[i]].s:'Rest'}</b></div>`).join('')}</div></div>
+    <div><div class="lbl" style="margin-bottom:8px;display:flex;justify-content:space-between;gap:10px">Your week<button class="linkbtn" style="font-size:12px;letter-spacing:0;text-transform:none" data-act="days-edit">Change days</button></div><div class="week">${DAYS.map((n,i)=>`<div class="day ${sc[i]?'on':''} ${i===ti?'today':''}" title="${sc[i]?esc(TPLM[sc[i]].name):'Rest day'}"><span>${n}</span><b>${sc[i]?TPLM[sc[i]].s:'Rest'}</b></div>`).join('')}</div></div>
     <div><div class="lbl" style="margin-bottom:8px">Tips for your goal</div><div class="tips">${tipsFor(p).map(x=>`<div class="tip"><span class="k">${x.k}</span><b>${esc(x.b)}</b><p>${esc(x.p)}</p></div>`).join('')}</div></div>
   </div></section>
   <section><div class="section-title"><h2>Recommended routines</h2><small>for ${goalNames(p).toLowerCase()}</small></div>
     <div class="grid">${recIds(p).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>`}
 function niceMax(m){const p=Math.pow(10,Math.floor(Math.log10(m)));for(const f of[1,2,2.5,5,10])if(f*p>=m)return f*p;return 10*p}
-function histRow(w,extra=''){return `<div class="row"><div class="ava">${initials(w.name)}</div><div class="grow"><div class="t">${esc(w.name)}</div><div class="s">${fmtDate(w.start)} · ${fmtDur(w.end-w.start)} · ${w.ex.length} exercises</div></div><div class="num" style="font-weight:800">${kfmt(vol(w))} kg</div>${extra}</div>`}
+function histRow(w,extra=''){return `<div class="row"><div class="ava">${initials(w.name)}</div><div class="grow"><div class="t">${esc(w.name)}</div><div class="s">${w.plan?`<span class="tag g" style="padding:1px 7px;margin-right:6px">Plan · W${w.plan.week}${w.plan.day?' D'+w.plan.day:''}</span>`:''}${fmtDate(w.start)} · ${fmtDur(w.end-w.start)} · ${w.ex.length} exercises</div></div><div class="num" style="font-weight:800">${kfmt(vol(w))} kg</div>${extra}</div>`}
 
 function tplCard(t,mine,rec){
   return `<article class="panel tpl"><div class="meta">${mine?'<span class="tag g">My routine</span>':`${rec?'<span class="tag g">Recommended</span>':''}<span class="tag ${rec?'':'g'}">${t.lvl}</span><span class="tag">${t.freq}</span>`}</div>
@@ -445,6 +577,10 @@ function tplCard(t,mine,rec){
 function vWorkout(){
   return `<div class="head"><div><h1>Start a workout</h1><p>Pick one of your routines, a suggested template, or log freestyle.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="new-routine">New routine</button><button class="btn primary" data-act="start-empty">Start empty workout</button></div></div>
+  ${following()&&curWeek()<=12?(()=>{const n=nextPlanDay(),wk=Math.min(Math.max(n.week,1),12),R=weekRx(wk);return `<section><div class="section-title"><h2>From your 12-week plan</h2><button class="linkbtn" data-act="go" data-v="progress">View plan</button></div>
+    <div class="panel plan-card"><div><span class="tag g">Week ${wk} · ${R.B.ph[R.ph]}${R.dl?' · Deload':R.test?' · Test':''}</span></div><h3>${n.k===0?'Today':n.k===1?'Tomorrow':DAYS[n.d]}: ${esc(n.t.name)}</h3>
+    <div class="muted" style="font-size:14px">Main lifts ${R.main.reps==='AMRAP'?'max reps @ '+R.main.pct+'%':R.test&&R.main.reps===1?'test your max':R.main.sets+' × '+R.main.reps+' @ '+R.main.pct+'%'} · Accessories ${R.acc.sets} × ${R.acc.reps}. Weights are filled in for you.</div>
+    <div><button class="btn primary" data-act="plan-start">Start this workout</button></div></div></section>`})():''}
   <section><div class="section-title"><h2>Recommended for you</h2><small>${goalNames(data.profile)} · ${data.profile.days} days a week</small></div>
     <div class="grid">${recIds(data.profile).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>
   <section><div class="section-title"><h2>My routines</h2><small>${data.routines.length} saved</small></div>
@@ -454,7 +590,7 @@ function vWorkout(){
 }
 function filtered(){const q=ui.q.toLowerCase();return EX.filter(e=>(ui.muscle==='All'||e.m===ui.muscle)&&(!q||(e.name+' '+e.e+' '+e.m).toLowerCase().includes(q)))}
 function vExercises(){const list=filtered();
-  return `<div class="head"><div><h1>Exercise library</h1><p>${EX.length} exercises with form cues and video tutorials.</p></div></div>
+  return `<div class="head"><div><h1>Exercise library</h1><p>${EX.length} exercises with form cues and video tutorials.</p></div><button class="btn" data-act="glossary">Glossary</button></div>
   <div class="filters"><div class="search">${ICON.search}<input class="input" id="ex-search" placeholder="Search exercises or equipment" value="${esc(ui.q)}" autocomplete="off"></div>
   <div class="chips">${MUSCLES.map(m=>`<button class="chip" data-act="muscle" data-m="${m}" aria-pressed="${ui.muscle===m}">${m}</button>`).join('')}</div></div>
   <div class="panel list">${list.length?list.map(e=>{const b=bestKg(e.id);return `<div class="row hov"><button class="rowbtn" data-act="ex-detail" data-id="${e.id}"><span class="ava">${initials(e.name)}</span><span class="grow"><span class="t">${esc(e.name)}</span><span class="s">${e.m} · ${e.e}${b?` · best ${b} kg`:''}</span></span></button><a class="vid" href="${yt(e.name)}" target="_blank" rel="noopener">${ICON.yt}<span>Video</span></a></div>`}).join(''):'<div class="empty"><b>No matches</b>Try another name or clear the muscle filter.</div>'}</div>`;
@@ -471,6 +607,7 @@ function vProfile(){const u=users[me];
   <div class="panel stat"><div class="lbl">Total volume</div><div class="v num">${kfmt(data.history.reduce((a,w)=>a+vol(w),0))}<small>kg</small></div></div>
   <div class="panel stat"><div class="lbl">Time trained</div><div class="v num">${fmtDur(data.history.reduce((a,w)=>a+(w.end-w.start),0))}</div></div>
   <div class="panel stat"><div class="lbl">Routines</div><div class="v num">${data.routines.length}</div></div></div>
+  <section><div class="panel list"><button class="row click" data-act="glossary"><div class="ava">Aa</div><div class="grow"><div class="t">Glossary</div><div class="s">${GLOSS.length} training and nutrition terms explained</div></div><span class="muted">›</span></button></div></section>
   <section><div class="section-title"><h2>About you</h2></div>
   <div class="panel list"><div class="row"><div class="grow"><div class="s">Gender</div><div class="t">${GENDER[u.gender]||'Not set'}</div></div><div class="grow"><div class="s">Birthday</div><div class="t">${u.dob?new Date(u.dob+'T00:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}):'Not set'}</div></div><div class="grow"><div class="s">Age</div><div class="t">${u.dob?ageOf(u.dob):'—'}</div></div></div></div></section>
   <section><div class="section-title"><h2>${gl(data.profile).length>1?'Goals':'Goal'}</h2></div>
@@ -480,7 +617,7 @@ function vProfile(){const u=users[me];
   <div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn sm" for="rest-sel">Rest timer <select id="rest-sel" style="border:0;background:none;font-weight:700">${[60,90,120,180].map(s=>`<option value="${s}" ${ui.restTotal===s?'selected':''}>${s}s</option>`).join('')}</select></label><button class="btn sm danger" data-act="logout">Log out</button></div>`;
 }
 function vLog(){const a=data.active;if(!a){ui.view='workout';return vWorkout()}
-  return `<div class="log-head"><div style="flex:1;min-width:200px"><input class="log-name" id="log-name" value="${esc(a.name)}" aria-label="Workout name"><div class="log-meta"><div>Duration<b class="num" data-elapsed>${clock(Date.now()-a.start)}</b></div><div>Volume<b class="num" id="log-vol">${kfmt(vol(a))} kg</b></div><div>Sets<b class="num" id="log-sets">${a.ex.reduce((n,x)=>n+x.sets.filter(s=>s.done).length,0)}</b></div></div></div>
+  return `<div class="log-head"><div style="flex:1;min-width:200px">${a.plan?`<span class="plan-badge" style="margin-bottom:6px">Block ${a.plan.blockNo||1} · Week ${a.plan.week}${a.plan.day?' · Day '+a.plan.day:''}</span>`:''}<input class="log-name" id="log-name" value="${esc(a.name)}" aria-label="Workout name"><div class="log-meta"><div>Duration<b class="num" data-elapsed>${clock(Date.now()-a.start)}</b></div><div>Volume<b class="num" id="log-vol">${kfmt(vol(a))} kg</b></div><div>Sets<b class="num" id="log-sets">${a.ex.reduce((n,x)=>n+x.sets.filter(s=>s.done).length,0)}</b></div></div></div>
     <div style="display:flex;gap:8px"><button class="btn sm ghost" data-act="discard">Discard</button><button class="btn primary" data-act="finish">Finish</button></div></div>
   ${a.ex.length?a.ex.map((x,i)=>{const e=EXM[x.id];const prev=lastSets(x.id);return `<article class="panel ex-card"><div class="ex-top"><div class="ava">${initials(e.name)}</div><div class="grow"><button class="ex-title" data-act="ex-detail" data-id="${e.id}">${esc(e.name)}</button><div><a class="vid" href="${yt(e.name)}" target="_blank" rel="noopener">${ICON.yt}<span>Watch tutorial</span></a></div></div><button class="x" aria-label="Remove ${esc(e.name)}" data-act="rm-ex" data-i="${i}">✕</button></div>
     <div style="overflow-x:auto"><table class="sets"><thead><tr><th>Set</th><th>Previous</th><th>${e.u?'—':'kg'}</th><th>${e.u?'Sec':'Reps'}</th><th>✓</th></tr></thead><tbody>
@@ -540,14 +677,14 @@ function builder(rt){rt=rt||{name:'',x:[]};
 function confirmBox(title,msg,label,fn){modalCb=fn;openModal(`<div class="sheet-head"><h2>${title}</h2></div><div class="sheet-body"><p style="margin:0" class="muted">${msg}</p></div><div class="sheet-foot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="confirm-yes">${label}</button></div>`)}
 
 /* ---------------- Workout logic ---------------- */
-function startWorkout(name,items){
-  const go=()=>{data.active={name,start:Date.now(),ex:items.map(([id,s,r])=>{const prev=lastSets(id);return{id,sets:Array.from({length:s},(_,j)=>({kg:prev[j]?prev[j].kg:'',reps:r,done:false}))}})};save();closeModal();ui.view='log';render();window.scrollTo(0,0)};
+function startWorkout(name,items,meta){
+  const go=()=>{data.active={name,plan:meta||null,start:Date.now(),ex:items.map(([id,s,r,kg])=>{const prev=lastSets(id);return{id,sets:Array.from({length:s},(_,j)=>({kg:kg!=null&&kg!==''?kg:(prev[j]?prev[j].kg:''),reps:r,done:false}))}})};save();closeModal();ui.view='log';render();window.scrollTo(0,0)};
   if(data.active)confirmBox('Replace current workout?',`“${esc(data.active.name)}” is still in progress. Starting a new one discards it.`,'Discard and start',go);else go()}
 function updateLogStats(){const a=data.active;if(!a)return;const v=$('#log-vol'),s=$('#log-sets');if(v)v.textContent=kfmt(vol(a))+' kg';if(s)s.textContent=a.ex.reduce((n,x)=>n+x.sets.filter(z=>z.done).length,0)}
 function finish(){const a=data.active;const ex=a.ex.map(x=>({id:x.id,sets:x.sets.filter(s=>s.done)})).filter(x=>x.sets.length);
   if(!ex.length){const e=$('#finish-err');e.textContent='Tick at least one completed set before finishing, or discard the workout.';e.hidden=false;e.scrollIntoView({block:'center'});return}
   const before=prCount();
-  data.history.unshift({id:uid(),name:a.name.trim()||'Workout',start:a.start,end:Date.now(),ex});data.active=null;save();stopRest();
+  data.history.unshift({id:uid(),plan:a.plan||null,name:a.name.trim()||'Workout',start:a.start,end:Date.now(),ex});data.active=null;save();stopRest();
   const prs=prCount()-before;ui.view='home';render();window.scrollTo(0,0);toast(prs>0?`Workout saved · ${prs} new PR${prs>1?'s':''}`:'Workout saved')}
 function startRest(){ui.rest=Date.now()+ui.restTotal*1000;drawRest()}
 function stopRest(){ui.rest=null;$('#rest').hidden=true}
@@ -572,11 +709,25 @@ const A={
   'new-routine':()=>builder(),
   'change-goal':()=>showOnboard(true),
   'pw-sel':b=>{ui.pw=+b.dataset.w;render()},
+  'pday':b=>{ui.pday=+b.dataset.d;render()},
+  'day-step':b=>{const td=tdaysOf(),dir=+b.dataset.dir,sel=ui.pw&&ui.pw<=12?ui.pw:Math.min(Math.max(curWeek(),1),12);let k=td.indexOf(ui.pday)+dir,w=sel;
+    if(k<0){if(w===1)return;w--;k=td.length-1}else if(k>=td.length){if(w===12)return;w++;k=0}ui.pw=w;ui.pday=td[k];render()},
+  'days-edit':editDays,
+  'dm-wday':b=>{const d=+b.dataset.d,w=ui.tmpW,i=w.indexOf(d);i>=0?w.splice(i,1):w.push(d);w.sort((a,b)=>a-b);drawDays()},
+  'days-save':()=>{const w=ui.tmpW;if(w.length<2||w.length>6)return;data.profile.wdays=[...w];data.profile.days=w.length;ui.pday=null;save();closeModal();render();toast('Training days updated')},
+  'ob-wday':b=>{const d=+b.dataset.d,w=ob.p.wdays,i=w.indexOf(d);i>=0?w.splice(i,1):w.push(d);w.sort((a,b)=>a-b);drawOnboard()},
+  'start-week-day':startWeekDay,
+  term:b=>termModal(b.dataset.k),
+  glossary:()=>{closeModal();if(ui.view!=='glossary')ui.glBack=ui.view==='log'?'workout':ui.view;ui.view='glossary';render();window.scrollTo(0,0)},
+  'gl-cat':b=>{ui.gc=b.dataset.c;render()},
   'pl-sel':b=>{ui.pl=b.dataset.id;render()},
   'goal-add':()=>addGoal('lift'),'goal-type':b=>addGoal(b.dataset.t),'goal-save':b=>goalSave(b.dataset.t),
   'goal-del':b=>confirmBox('Delete goal?','This removes the goal. Your logged workouts are not affected.','Delete',()=>{data.liftGoals=data.liftGoals.filter(g=>g.id!==b.dataset.id);save();render()}),
   'bw-del':()=>confirmBox('Delete bodyweight goal?','Your weigh-ins stay saved.','Delete',()=>{data.bwGoal=null;save();render()}),
-  'block-restart':()=>confirmBox(curWeek()>12?'Start the next block?':'Restart your block?','Week 1 starts this week. Your logs, maxes and goals stay the same.',curWeek()>12?'Start next block':'Restart',()=>{data.program.start=weekStart(Date.now());ui.pw=null;save();render();toast('New block started')}),
+  'plan-start':startPlanDay,
+  'plan-follow':()=>{const B=BLOCKS[blockType(data.profile)];confirmBox('Follow the 12-week plan?',`Week 1 starts this week. RepForge will set your sets, reps and weights every week in a ${B.name.toLowerCase()} built around your goal (${esc(goalNames(data.profile))}). You can stop any time.`,'Start the plan',()=>{ensureProgress();data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null;ui.pday=null;save();render();toast('You\'re now following the 12-week plan')})},
+  'plan-stop':()=>confirmBox('Stop following the plan?','Your logs, maxes and goals stay saved. You can start a new plan any time.','Stop plan',()=>{data.program.active=false;ui.pw=null;save();render();toast('Plan stopped')}),
+  'block-restart':()=>confirmBox(curWeek()>12?'Start the next block?':'Restart your block?','Week 1 starts this week. Your logs, maxes and goals stay the same.',curWeek()>12?'Start next block':'Restart',()=>{const nb=blockNo()+(curWeek()>12?1:0);data.program={start:weekStart(Date.now()),active:true,block:nb};ui.pw=null;ui.pday=null;save();render();toast(`Block ${nb} started`)}),
   'ob-goal':b=>{const g=ob.p.goals,k=b.dataset.v,i=g.indexOf(k);if(i>=0)g.splice(i,1);else if(!blockedBy(k,g))g.push(k);drawOnboard()},
   'ob-pick':b=>{const k=b.dataset.k;ob.p[k]=k==='days'?+b.dataset.v:b.dataset.v;drawOnboard()},
   'ob-next':()=>{ob.step++;drawOnboard();window.scrollTo(0,0)},
@@ -602,6 +753,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal()});
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='ob-bw'){ob.p.bw=t.value;return}
+  if(t.id==='gl-search'){ui.gq=t.value;render();const g=$('#gl-search');g.focus();g.setSelectionRange(g.value.length,g.value.length);return}
   if(t.id==='ex-search'){ui.q=t.value;ui.focusSearch=true;render();return}
   if(t.id==='log-name'&&data.active){data.active.name=t.value;save();return}
   if(t.dataset.f&&data.active){const s=data.active.ex[+t.dataset.i].sets[+t.dataset.j];s[t.dataset.f]=t.value.replace(/[^\d.]/g,'');save();updateLogStats()}});

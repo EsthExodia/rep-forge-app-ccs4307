@@ -7,9 +7,13 @@ RepForge is a workout planner and progress tracker inspired by Hevy. It runs ent
 ## Features
 
 - **Login and registration** with gender and birthday (age must be 13+), plus input validation (accounts are stored in the browser's localStorage)
-- **Goal setup after sign-up**: users pick one or more goals (lose fat, build muscle, get stronger, gain weight, stay fit; conflicting goals like lose fat + gain weight can't be combined), their experience level, training days per week and optional bodyweight
+- **Goal setup after sign-up**: users pick one or more goals (lose fat, build muscle, get stronger, gain weight, stay fit; conflicting goals like lose fat + gain weight can't be combined), their experience level, the exact weekdays they can train (changeable later) and optional bodyweight
 - **Personalised plan**: recommended routines and a weekly schedule based on the goal, daily protein and calorie targets (calories adjusted for gender and age), rep ranges, and nutrition / training / recovery tips
+- **Optional 12-week plan**: users choose during setup (or later from Home / Progress) whether to follow a plan. While following, Home, Workout, the sidebar and the logger show the current week and today's plan workout, with weights pre-filled
 - **Progress tab with periodization**: a 12-week training block (strength, hypertrophy, fat-loss or foundation, based on the main goal) split into 3 phases with planned deload and test weeks; each week shows sets × reps @ % of 1RM, reps in reserve, and working weights for your main lifts
+- **Day-by-day plan navigator**: browse any day of the plan (e.g. Block 1 › Week 3 › Day 3) with dates, previous/next buttons and Done / Upcoming / Not logged status
+- **Week-by-week workouts**: every session in the selected week with plain sets × reps × kg for main lifts and accessories, plus a button to start it pre-filled in the logger
+- **Glossary** of 44 training and nutrition terms (1RM, RIR, deload, recomp, etc.); key terms across the app are tappable for a quick definition
 - **Predictive lift projections**: estimated 1RM (Epley formula) from logged sets, projected forward using your trend, experience level and goal, shown on a chart
 - **Goal tracking**: set lift goals (e.g. 100 kg bench) and a bodyweight goal; RepForge predicts when you'll reach them, and you can log weigh-ins
 - **Demo account** with sample workout history
