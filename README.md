@@ -9,6 +9,9 @@ RepForge is a workout planner and progress tracker inspired by Hevy. It runs ent
 - **Login and registration** with gender and birthday (age must be 13+), plus input validation (accounts are stored in the browser's localStorage)
 - **Goal setup after sign-up**: users pick one or more goals (lose fat, build muscle, get stronger, gain weight, stay fit; conflicting goals like lose fat + gain weight can't be combined), their experience level, training days per week and optional bodyweight
 - **Personalised plan**: recommended routines and a weekly schedule based on the goal, daily protein and calorie targets (calories adjusted for gender and age), rep ranges, and nutrition / training / recovery tips
+- **Progress tab with periodization**: a 12-week training block (strength, hypertrophy, fat-loss or foundation, based on the main goal) split into 3 phases with planned deload and test weeks; each week shows sets × reps @ % of 1RM, reps in reserve, and working weights for your main lifts
+- **Predictive lift projections**: estimated 1RM (Epley formula) from logged sets, projected forward using your trend, experience level and goal, shown on a chart
+- **Goal tracking**: set lift goals (e.g. 100 kg bench) and a bodyweight goal; RepForge predicts when you'll reach them, and you can log weigh-ins
 - **Demo account** with sample workout history
 - **Exercise library** of 37 built-in exercises, searchable and filterable by muscle group, each with form cues and a link to video tutorials
 - **13 suggested templates**: Full Body Starter, Fat Burn Circuit, Mass Builder, Total Body Fitness, Upper / Lower, Push / Pull / Legs, 5×5 Strength A & B, Big Three, Dumbbells Only

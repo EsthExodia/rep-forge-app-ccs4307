@@ -170,6 +170,7 @@ const ICON={
  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>',
  workout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4m3-6v8m12-8v8m3-6v4M6 12h12"/></svg>',
  exercises:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+ progress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/></svg>',
  history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>',
  profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>',
@@ -177,7 +178,7 @@ const ICON={
  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
  yt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg>'
 };
-const NAV=[['home','Home'],['workout','Workout'],['exercises','Exercises'],['history','History'],['profile','Profile']];
+const NAV=[['home','Home'],['workout','Workout'],['progress','Progress'],['exercises','Exercises'],['history','History'],['profile','Profile']];
 
 /* ---------------- State ---------------- */
 let users=store.get('rf_users')||{};
@@ -242,11 +243,12 @@ function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' 
   $('#v-onboard').innerHTML=bar+h}
 function obDone(){const raw=String(ob.p.bw).trim();const bw=raw?parseFloat(raw):null;
   if(raw&&!(bw>=30&&bw<=300)){ob.err='Enter a bodyweight between 30 and 300 kg, or leave it blank.';drawOnboard();return}
-  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.days,bw};save();enterApp();toast(ob.edit?'Plan updated':'Your plan is ready')}
+  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.days,bw};ensureProgress();if(bw){const l=data.weighins[data.weighins.length-1];if(!l||l.kg!==bw)data.weighins.push({t:Date.now(),kg:bw})}save();enterApp();toast(ob.edit?'Plan updated':'Your plan is ready')}
 function signOut(){store.del('rf_session');me=data=null;stopRest();$('#app').hidden=true;$('#resume').hidden=true;$('#auth').hidden=false;showAuth('login');$('#login-password').value=''}
 async function demo(){const em='demo@repforge.app';
   if(!users[em]){users[em]={name:'Alex Reyes',gender:'male',dob:'2003-05-14',pw:await hash('repforge123'),created:Date.now()-30*DAY,data:{history:seedHistory(),routines:[mkRoutine(TPL[1]),mkRoutine(TPL[2])],active:null}};store.set('rf_users',users)}
   if(!users[em].data.profile){users[em].data.profile={goal:'muscle',goals:['muscle','strength'],level:'mid',days:4,bw:72};store.set('rf_users',users)}
+  {const d=users[em].data;if(!d.program){d.program={start:weekStart(Date.now())-4*7*DAY};d.liftGoals=[{id:uid(),ex:'bench',target:85,from:76,created:Date.now()-28*DAY},{id:uid(),ex:'squat',target:120,from:100,created:Date.now()-28*DAY}];d.bwGoal={target:75,from:70.5,created:Date.now()-28*DAY};d.weighins=[[28,70.5],[21,70.9],[14,71.4],[7,71.6],[1,72]].map(([a,kg])=>({t:Date.now()-a*DAY,kg}));d.baselines={};store.set('rf_users',users)}}
   signIn(em)}
 function seedHistory(){const base={bench:60,incline_db:22,latpull:50,db_row:24,lat_raise:8,pushdown:20,squat:80,rdl:70,bss:14,leg_ext:40,calf:60,hanging_leg:0};
   const days=[24,22,19,17,15,12,10,8,5,3,1];const out=[];
@@ -261,12 +263,132 @@ function lastSets(id){for(const w of data.history)for(const x of w.ex)if(x.id===
 function prCount(){const best={};let n=0;[...data.history].sort((a,b)=>a.start-b.start).forEach(w=>w.ex.forEach(x=>x.sets.forEach(s=>{if(!s.done||!(+s.kg))return;if(best[x.id]!=null&&+s.kg>best[x.id])n++;if(best[x.id]==null||+s.kg>best[x.id])best[x.id]=+s.kg})));return n}
 function streak(){const weeks=new Set(data.history.map(w=>weekStart(w.start)));let k=weekStart(Date.now());if(!weeks.has(k))k-=7*DAY;let n=0;while(weeks.has(k)){n++;k-=7*DAY}return n}
 
+/* ---------------- Progress & periodization ---------------- */
+const BLOCKS={
+ str:{name:'Strength block',ph:['Accumulation','Intensification','Peak'],pd:['Moderate weight, more sets. Builds the base you will peak from.','Heavier triples. Fewer reps, more weight on the bar.','Heavy doubles and singles, then test your new max in week 12.'],
+  w:[[5,5,75,'2–3'],[5,5,77.5,'2'],[5,5,80,'1–2'],[3,5,65,'4+','D'],[4,3,85,'2'],[4,3,87.5,'1–2'],[4,3,90,'1'],[3,3,70,'4+','D'],[3,2,90,'1–2'],[3,2,92.5,'1'],[2,1,95,'0–1'],[1,1,100,'0','T']]},
+ hyp:{name:'Hypertrophy block',ph:['Volume','Overload','Intensity'],pd:['Higher reps with a few reps in reserve. Build work capacity.','Heavier sets of 8, pushing closer to failure.','Heavier sets of 6 near failure, then an AMRAP test in week 12.'],
+  w:[[4,10,67.5,'3'],[4,10,70,'2'],[4,10,72.5,'1'],[2,10,60,'4+','D'],[4,8,72.5,'2–3'],[4,8,75,'2'],[4,8,77.5,'1'],[2,8,62.5,'4+','D'],[4,6,77.5,'2'],[4,6,80,'1'],[4,6,82.5,'0–1'],[1,'AMRAP',80,'0','T']]},
+ cut:{name:'Fat-loss block',ph:['Base','Build','Sharpen'],pd:['Keep lifting with solid volume while the diet starts.','Keep the weight heavy. Volume drops slightly as recovery gets harder.','Heavy, low-volume work to hold on to strength through the end of the cut.'],
+  w:[[3,10,67.5,'3'],[3,10,70,'2'],[3,10,72.5,'2'],[2,10,60,'4+','D'],[3,8,72.5,'2'],[3,8,75,'2'],[3,8,77.5,'1–2'],[2,8,62.5,'4+','D'],[3,6,77.5,'2'],[3,6,80,'1–2'],[3,6,82.5,'1'],[2,6,65,'4+','D']]},
+ fit:{name:'Foundation block',ph:['Foundation','Build','Progress'],pd:['Learn the lifts with light, controlled sets.','Add weight while keeping 2–3 reps in reserve.','Slightly heavier sets of 8 to lock in your progress.'],
+  w:[[3,12,60,'3'],[3,12,62.5,'3'],[3,12,65,'2–3'],[2,12,55,'4+','D'],[3,10,67.5,'2–3'],[3,10,70,'2'],[3,10,72.5,'2'],[2,10,60,'4+','D'],[3,8,72.5,'2'],[3,8,75,'2'],[3,8,77.5,'1–2'],[2,8,65,'3+','D']]}
+};
+const MAIN=['squat','bench','deadlift','ohp','row','front_squat','incline_db','rdl','hip_thrust','pullup'];
+function ensureProgress(){if(!data.program)data.program={start:weekStart(Date.now())};data.liftGoals=data.liftGoals||[];data.weighins=data.weighins||[];data.baselines=data.baselines||{};
+  if(data.profile&&data.profile.bw&&!data.weighins.length)data.weighins.push({t:Date.now(),kg:data.profile.bw})}
+function blockType(p){return {strength:'str',muscle:'hyp',gain:'hyp',lose:'cut',fit:'fit'}[p.goal]||'hyp'}
+const curWeek=()=>Math.floor((Date.now()-data.program.start)/(7*DAY))+1;
+const e1=(kg,r)=>r<=1?kg:kg*(1+Math.min(r,12)/30);
+const r25=x=>Math.round(x/2.5)*2.5;
+function liftPts(id){const pts=[],b=data.baselines[id];if(b)pts.push({x:b.t,y:e1(b.kg,b.reps)});
+  data.history.forEach(w=>{let m=0;w.ex.forEach(x=>{if(x.id===id)x.sets.forEach(s=>{if(s.done&&+s.kg>0)m=Math.max(m,e1(+s.kg,+s.reps||1))})});if(m)pts.push({x:w.start,y:m})});
+  return pts.sort((a,b)=>a.x-b.x)}
+function curE1(id){const pts=liftPts(id);if(!pts.length)return 0;const rec=pts.filter(p=>p.x>=Date.now()-42*DAY);return Math.max(...(rec.length?rec:pts.slice(-1)).map(p=>p.y))}
+function goalFactor(p){const g=gl(p);if(isRecomp(p))return .7;if(g.includes('lose'))return .5;if(p.goal==='gain')return 1.2;if(g.length===1&&g[0]==='fit')return .6;return 1}
+function liftRate(id){const p=data.profile,base={new:.025,mid:.01,adv:.004}[p.level]*goalFactor(p),pts=liftPts(id),cur=curE1(id);
+  if(pts.length>=3&&pts[pts.length-1].x-pts[0].x>=14*DAY&&cur){const n=pts.length,xs=pts.map(q=>(q.x-pts[0].x)/(7*DAY)),mx=xs.reduce((a,b)=>a+b)/n,my=pts.reduce((a,q)=>a+q.y,0)/n;
+    let num=0,den=0;xs.forEach((x,i)=>{num+=(x-mx)*(pts[i].y-my);den+=(x-mx)**2});const obs=den?num/den/cur:0;return Math.min(base*2,Math.max(base*.25,.5*base+.5*obs))}
+  return base}
+function projE1(id,weeks){let v=curE1(id);const r=liftRate(id);for(let i=0;i<weeks;i++)v*=1+r*Math.pow(.97,i);return v}
+function weeksToLift(id,t){let v=curE1(id);const r=liftRate(id);if(!v)return null;for(let i=0;i<=156;i++){if(v>=t)return i;v*=1+r*Math.pow(.97,i)}return null}
+const curBW=()=>{const w=data.weighins;return w.length?w[w.length-1].kg:(data.profile.bw||0)};
+function bwRate(){const p=data.profile,g=gl(p),bw=curBW();if(isRecomp(p))return -.004*bw;if(g.includes('lose'))return -.0075*bw;if(g.includes('gain'))return .375;if(g.includes('muscle'))return .003*bw;return 0}
+function progressLifts(){const ids=EX.filter(e=>!e.u&&curE1(e.id)).map(e=>e.id);data.liftGoals.forEach(g=>ids.includes(g.ex)||ids.push(g.ex));
+  const sorted=ids.sort((a,b)=>{const ia=MAIN.indexOf(a),ib=MAIN.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||curE1(b)-curE1(a)}).filter(id=>curE1(id));const main=sorted.filter(id=>MAIN.includes(id)||data.liftGoals.some(g=>g.ex===id));return (main.length>=3?main:sorted).slice(0,6)}
+const fmtWhen=w=>{if(w===0)return 'Reached';const d=new Date(Date.now()+w*7*DAY);return d.toLocaleDateString(undefined,{month:'short',year:'numeric'})+` · ~${w} wk${w>1?'s':''}`};
+
+function lineChart(o){const W=640,H=230,L=46,R=70,T=14,B=26;
+  const all=o.series.flatMap(s=>s.pts);if(!all.length)return '';
+  let x0=Math.min(...all.map(p=>p.x)),x1=Math.max(...all.map(p=>p.x));if(x1-x0<7*DAY)x1=x0+7*DAY;
+  const ys=all.map(p=>p.y).concat(o.goal!=null?[o.goal]:[]);let y0=Math.min(...ys),y1=Math.max(...ys);const pad=Math.max((y1-y0)*.12,o.minPad||2.5);y0-=pad;y1+=pad;
+  const st=niceMax((y1-y0)/4)||1;y0=Math.floor(y0/st)*st;y1=Math.ceil(y1/st)*st;
+  const X=x=>L+(x-x0)/(x1-x0)*(W-L-R),Y=y=>T+(1-(y-y0)/(y1-y0))*(H-T-B);
+  let g='';for(let v=y0;v<=y1+1e-9;v+=st)g+=`<line class="ch-grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ch-txt" x="${L-8}" y="${Y(v)+4}" text-anchor="end">${+v.toFixed(1)}</text>`;
+  const n=5;for(let i=0;i<n;i++){const x=x0+(x1-x0)*i/(n-1);g+=`<text class="ch-txt" x="${X(x)}" y="${H-6}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</text>`}
+  const now=Date.now();if(now>x0&&now<x1)g+=`<line class="ch-now" x1="${X(now)}" x2="${X(now)}" y1="${T}" y2="${H-B}"/><text class="ch-txt" x="${X(now)+4}" y="${T+10}">Today</text>`;
+  if(o.goal!=null)g+=`<line class="ch-goal" x1="${L}" x2="${W-R}" y1="${Y(o.goal)}" y2="${Y(o.goal)}"/><text class="ch-lbl" x="${W-R+6}" y="${Y(o.goal)+4}">Goal ${o.goal}</text>`;
+  o.series.forEach(s=>{if(!s.pts.length)return;const d=s.pts.map((p,i)=>(i?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1)).join(' ');
+    g+=`<path class="${s.cls}" d="${d}"/>`;if(s.dots)g+=s.pts.map(p=>`<circle class="ch-dot" cx="${X(p.x)}" cy="${Y(p.y)}" r="3.5"/>`).join('');
+    if(s.end){const q=s.pts[s.pts.length-1];if(o.goal==null||Math.abs(Y(q.y)-Y(o.goal))>14)g+=`<text class="ch-lbl" x="${X(q.x)+6}" y="${Y(q.y)+4}">${s.end}</text>`}});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||'Chart')}">${g}</svg>`}
+
+function vProgress(){ensureProgress();const p=data.profile,B=BLOCKS[blockType(p)],cw=curWeek(),done=cw>12,cwc=Math.min(Math.max(cw,1),12);
+  const sel=ui.pw&&ui.pw<=12?ui.pw:cwc,wk=B.w[sel-1],phase=Math.floor((sel-1)/4),lifts=progressLifts();
+  if(!ui.pl||!lifts.includes(ui.pl))ui.pl=lifts[0];
+  const wDate=data.program.start+(sel-1)*7*DAY,ahead=Math.max(0,Math.round((wDate-Date.now())/(7*DAY)));
+  const kind=wk[4]==='D'?'Deload':wk[4]==='T'?'Test':'';
+  const rxTxt=`${wk[0]} × ${wk[1]} @ ${wk[2]}%`;
+  let rows=lifts.map(id=>{const now=curE1(id),at=projE1(id,ahead);let tgt;
+    if(wk[4]==='T'&&wk[1]===1)tgt=`Max ≈ ${r25(at)} kg`;else if(wk[1]==='AMRAP')tgt=`AMRAP @ ${r25(at*wk[2]/100)} kg`;else tgt=`${wk[0]} × ${wk[1]} @ ${r25(at*wk[2]/100)} kg`;
+    return `<tr><td>${esc(EXM[id].name)}</td><td class="r">${Math.round(now)} kg</td><td class="r"><b>${tgt}</b></td></tr>`}).join('');
+  // chart for selected lift
+  let liftChart='';if(ui.pl){const id=ui.pl,pts=liftPts(id).filter(q=>q.x>=Date.now()-16*7*DAY),end=Math.max(data.program.start+12*7*DAY,Date.now()+8*7*DAY),wks=Math.ceil((end-Date.now())/(7*DAY));
+    const proj=[];for(let i=0;i<=wks;i++)proj.push({x:Date.now()+i*7*DAY,y:projE1(id,i)});
+    const lg=data.liftGoals.find(g=>g.ex===id);const endV=proj[proj.length-1].y;
+    liftChart=`<div class="panel chartbox"><div class="rx" style="margin-bottom:12px"><div><span class="lbl">Est. 1RM now</span><span class="big">${Math.round(curE1(id))} kg</span></div><div><span class="lbl">Projected ${new Date(end).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><span class="big">${Math.round(endV)} kg</span></div><div><span class="lbl">Rate</span><span class="big">+${(liftRate(id)*100).toFixed(1)}%<small class="muted" style="font-size:14px"> /wk</small></span></div></div>
+      ${lineChart({series:[{pts,cls:'ch-act',dots:true},{pts:proj,cls:'ch-proj',end:Math.round(endV)+' kg'}],goal:lg?lg.target:null,label:EXM[id].name+' projection'})}
+      <div class="legend"><span><i></i>Est. 1RM from your best set each session</span><span><i class="p"></i>Projection</span>${lg?'<span><i class="g"></i>Goal</span>':''}</div></div>`}
+  // goals
+  const gCards=data.liftGoals.map(g=>{const cur=curE1(g.ex),w=weeksToLift(g.ex,g.target),pct=Math.max(0,Math.min(100,(cur-g.from)/(g.target-g.from)*100||0)),ok=cur>=g.target;
+    return `<article class="panel goal"><div class="goal-top"><div class="ava">${initials(EXM[g.ex].name)}</div><div class="grow"><div class="t">${esc(EXM[g.ex].name)}</div><div class="s muted" style="font-size:13px">Estimated 1RM goal</div></div><div class="big">${g.target} kg</div><button class="x" aria-label="Delete goal" data-act="goal-del" data-id="${g.id}">✕</button></div>
+      <div class="pbar"><i style="width:${ok?100:pct}%"></i></div>
+      <div class="goal-meta"><span>Now <b>${Math.round(cur)} kg</b> · started ${Math.round(g.from)} kg</span><span>${ok?'<b style="color:var(--green-ink)">Goal reached</b>':w==null?'Over 3 years at this rate':'Predicted <b>'+fmtWhen(w)+'</b>'}</span></div></article>`}).join('');
+  let bwCard='';const bg=data.bwGoal,bw=curBW();
+  if(bg){const r=bwRate(),diff=bg.target-bw,ok=Math.abs(diff)<.3,wks=ok?0:r&&Math.sign(r)===Math.sign(diff)?Math.ceil(diff/r):null,tot=bg.target-bg.from,pct=tot?Math.max(0,Math.min(100,(bw-bg.from)/tot*100)):100;
+    const pts=data.weighins.filter(w=>w.t>=Date.now()-16*7*DAY).map(w=>({x:w.t,y:w.kg}));const proj=[];if(!ok&&wks!=null){const n=Math.min(wks,52);for(let i=0;i<=n;i++)proj.push({x:Date.now()+i*7*DAY,y:bw+r*i})}
+    bwCard=`<article class="panel goal" style="grid-column:1/-1"><div class="goal-top"><div class="ava">BW</div><div class="grow"><div class="t">Bodyweight</div><div class="s muted" style="font-size:13px">${diff<0?'Weight loss':'Weight gain'} goal · ${r?`${r>0?'+':''}${r.toFixed(2)} kg/week expected`:'no expected change for your goals'}</div></div><div class="big">${bg.target} kg</div><button class="x" aria-label="Delete goal" data-act="bw-del">✕</button></div>
+      <div class="pbar"><i style="width:${ok?100:pct}%"></i></div>
+      <div class="goal-meta"><span>Now <b>${bw} kg</b> · started ${bg.from} kg</span><span>${ok?'<b style="color:var(--green-ink)">Goal reached</b>':wks==null?'<b style="color:var(--danger)">Your current goals won\'t move your weight this way. Change goal to match.</b>':'Predicted <b>'+fmtWhen(wks)+'</b>'}</span></div>
+      ${pts.length?lineChart({series:[{pts,cls:'ch-act',dots:true},{pts:proj,cls:'ch-proj'}],goal:bg.target,minPad:.5,label:'Bodyweight'}):''}
+      <form class="inline-form" data-form="weighin"><div class="unit"><input class="input" id="wi-kg" inputmode="decimal" placeholder="Today's weight" aria-label="Today's weight"><span>kg</span></div><button class="btn primary sm" style="height:40px" type="submit">Log weight</button></form></article>`}
+  return `<div class="head"><div><div class="eyebrow">${B.name}</div><h1>Progress</h1><p>${done?'Your 12-week block is complete. Start the next one to keep progressing.':`Week ${cw<1?1:cw} of 12 · ${B.ph[Math.floor((cwc-1)/4)]} phase · started ${new Date(data.program.start).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`}</p></div>
+    <button class="btn" data-act="block-restart">${done?'Start next block':'Restart block'}</button></div>
+  <section><div class="section-title"><h2>Your 12-week block</h2><small>tap a week to see its plan</small></div>
+    <div class="panel blk-panel">
+      <div class="blk">${B.ph.map((n,i)=>`<div class="ph ${i===phase?'on':''}">${n}</div>`).join('')}
+        ${B.w.map((w,i)=>{const n=i+1;return `<button class="wk ${n<cw?'past':''} ${n===cw?'now':''} ${w[4]?'dl':''}" data-act="pw-sel" data-w="${n}" aria-pressed="${n===sel}" aria-label="Week ${n}"><span>${n}</span><small class="${w[4]?'':'pc'}">${w[4]||w[2]+'%'}</small></button>`}).join('')}</div>
+      <div class="rx"><div><span class="lbl">Week ${sel}${kind?' · '+kind:''}${sel===cw?' · this week':''}</span><span class="big">${wk[4]==='T'&&wk[1]===1?'Test your 1RM':wk[1]==='AMRAP'?'AMRAP @ '+wk[2]+'%':rxTxt}</span></div><div><span class="lbl">Reps in reserve</span><span class="big">${wk[3]}</span></div></div>
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">${kind==='Deload'?'Lighter week. Cut volume and weight so you recover and come back stronger.':kind==='Test'?(wk[1]===1?'Work up in singles to a new max. Stop when your form breaks down.':'Do one set of as many good reps as you can. This shows how much you have improved.'):B.pd[phase]} Apply this to your main lifts; keep accessories in their usual rep range.</p>
+      ${lifts.length?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Lift</th><th class="r">Est. 1RM now</th><th class="r">Week ${sel} target</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty" style="padding:12px"><b>No lift data yet</b>Log a workout or add a lift goal, and this table fills in your working weights.</div>'}
+    </div></section>
+  <section><div class="section-title"><h2>Lift projection</h2><small>based on your logs, level and goal</small></div>
+    ${lifts.length?`<div class="chips" style="margin-bottom:12px">${lifts.map(id=>`<button class="chip" data-act="pl-sel" data-id="${id}" aria-pressed="${ui.pl===id}">${esc(EXM[id].name)}</button>`).join('')}</div>${liftChart}`:'<div class="panel empty"><b>Nothing to project yet</b>Log a few workouts and your estimated maxes and projections show up here.</div>'}</section>
+  <section><div class="section-title"><h2>Goals</h2><button class="btn sm primary" data-act="goal-add">Add goal</button></div>
+    ${gCards||bwCard?`<div class="goals">${bwCard}${gCards}</div>`:'<div class="panel empty"><b>No goals yet</b>Set a target like a 100 kg bench or a bodyweight of 75 kg and RepForge predicts when you will hit it.</div>'}</section>
+  <p class="muted" style="font-size:12.5px;margin:0">Estimated 1RM uses the Epley formula on your best set each session. Projections assume you train consistently and slow down over time; real progress varies.</p>`}
+
+function addGoal(type){type=type||'lift';const bw=curBW();
+  const opts=EX.filter(e=>!e.u).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+  openModal(`<div class="sheet-head"><h2>Add goal</h2><button class="x" data-act="close" aria-label="Close">✕</button></div>
+  <div class="sheet-body"><div class="seg"><button type="button" data-act="goal-type" data-t="lift" aria-pressed="${type==='lift'}">Lift</button><button type="button" data-act="goal-type" data-t="bw" aria-pressed="${type==='bw'}">Bodyweight</button></div>
+  ${type==='lift'?`<div class="field" style="margin:0"><label for="g-ex">Exercise</label><select class="input" id="g-ex">${opts}</select></div><p class="hint" id="g-hint"></p>
+   <div class="field" style="margin:0"><label for="g-target">Target 1-rep max</label><div class="unit"><input class="input" id="g-target" inputmode="decimal" placeholder="e.g. 100"><span>kg</span></div></div>
+   <div><div class="lbl" style="margin-bottom:8px">Recent best set (optional if you've logged this lift)</div><div class="field-row"><div class="unit"><input class="input" id="g-bkg" inputmode="decimal" placeholder="Weight" aria-label="Weight"><span>kg</span></div><div class="unit"><input class="input" id="g-breps" inputmode="numeric" placeholder="Reps" aria-label="Reps"><span>reps</span></div></div></div>`
+  :`${bw?`<p class="hint" style="margin:0">Current bodyweight: <b>${bw} kg</b></p>`:`<div class="field" style="margin:0"><label for="g-bwnow">Current bodyweight</label><div class="unit"><input class="input" id="g-bwnow" inputmode="decimal" placeholder="e.g. 70"><span>kg</span></div></div>`}
+   <div class="field" style="margin:0"><label for="g-bwt">Target bodyweight</label><div class="unit"><input class="input" id="g-bwt" inputmode="decimal" placeholder="e.g. 75"><span>kg</span></div></div>`}
+  <p id="g-err" class="err" hidden style="margin:0"></p></div>
+  <div class="sheet-foot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="goal-save" data-t="${type}">Save goal</button></div>`);
+  if(type==='lift'){$('#g-ex').value=progressLifts()[0]||'bench';goalHint()}}
+function goalHint(){const h=$('#g-hint');if(!h)return;const c=curE1($('#g-ex').value);h.textContent=c?`Your estimated 1RM: ${Math.round(c)} kg`:'No logs for this lift yet. Enter a recent best set below.'}
+function goalSave(t){const E=m=>{const e=$('#g-err');e.textContent=m;e.hidden=false};
+  if(t==='lift'){const id=$('#g-ex').value,tg=parseFloat($('#g-target').value),bk=parseFloat($('#g-bkg').value),br=parseInt($('#g-breps').value);
+    if(!(tg>0&&tg<600))return E('Enter a target weight in kg.');
+    if($('#g-bkg').value||$('#g-breps').value){if(!(bk>0)||!(br>=1&&br<=30))return E('Enter the set as weight in kg and reps between 1 and 30.');data.baselines[id]={kg:bk,reps:br,t:Date.now()}}
+    const cur=curE1(id);if(!cur)return E('Enter a recent best set so we can estimate your current max.');
+    if(tg<=cur)return E(`Your estimated 1RM is already ${Math.round(cur)} kg. Set a higher target.`);
+    data.liftGoals=data.liftGoals.filter(g=>g.ex!==id);data.liftGoals.push({id:uid(),ex:id,target:tg,from:Math.round(cur*10)/10,created:Date.now()});ui.pl=id}
+  else{let bw=curBW();if(!bw){bw=parseFloat($('#g-bwnow').value);if(!(bw>=30&&bw<=300))return E('Enter your current bodyweight between 30 and 300 kg.');data.weighins.push({t:Date.now(),kg:bw});data.profile.bw=bw}
+    const tg=parseFloat($('#g-bwt').value);if(!(tg>=30&&tg<=300))return E('Enter a target between 30 and 300 kg.');if(Math.abs(tg-bw)<.3)return E('Pick a target different from your current weight.');
+    data.bwGoal={target:tg,from:bw,created:Date.now()}}
+  save();closeModal();render();toast('Goal added')}
+
 /* ---------------- Render ---------------- */
 function render(){
   const navHtml=NAV.map(([v,l])=>`<button type="button" data-act="go" data-v="${v}" ${ui.view===v||(v==='workout'&&ui.view==='log')?'aria-current="page"':''}>${ICON[v]}<span>${l}</span></button>`).join('');
   $('#nav').innerHTML=navHtml;$('#tabbar').innerHTML=navHtml;
   const v=$('#view');
-  v.innerHTML=({home:vHome,workout:vWorkout,exercises:vExercises,history:vHistory,profile:vProfile,log:vLog}[ui.view]||vHome)();
+  v.innerHTML=({progress:vProgress,home:vHome,workout:vWorkout,exercises:vExercises,history:vHistory,profile:vProfile,log:vLog}[ui.view]||vHome)();
   const r=$('#resume');r.hidden=!(data.active&&ui.view!=='log');
   if(!r.hidden)r.innerHTML=`<span>${esc(data.active.name)} in progress</span><span class="num" data-elapsed>${clock(Date.now()-data.active.start)}</span>`;
   if(ui.view==='exercises'){const s=$('#ex-search');if(s&&ui.focusSearch){s.focus();s.setSelectionRange(s.value.length,s.value.length);ui.focusSearch=false}}
@@ -449,6 +571,12 @@ const A={
   'del-hist':b=>confirmBox('Delete workout?','This removes it from your history and stats.','Delete',()=>{data.history=data.history.filter(x=>x.id!==b.dataset.id);save();render();toast('Workout deleted')}),
   'new-routine':()=>builder(),
   'change-goal':()=>showOnboard(true),
+  'pw-sel':b=>{ui.pw=+b.dataset.w;render()},
+  'pl-sel':b=>{ui.pl=b.dataset.id;render()},
+  'goal-add':()=>addGoal('lift'),'goal-type':b=>addGoal(b.dataset.t),'goal-save':b=>goalSave(b.dataset.t),
+  'goal-del':b=>confirmBox('Delete goal?','This removes the goal. Your logged workouts are not affected.','Delete',()=>{data.liftGoals=data.liftGoals.filter(g=>g.id!==b.dataset.id);save();render()}),
+  'bw-del':()=>confirmBox('Delete bodyweight goal?','Your weigh-ins stay saved.','Delete',()=>{data.bwGoal=null;save();render()}),
+  'block-restart':()=>confirmBox(curWeek()>12?'Start the next block?':'Restart your block?','Week 1 starts this week. Your logs, maxes and goals stay the same.',curWeek()>12?'Start next block':'Restart',()=>{data.program.start=weekStart(Date.now());ui.pw=null;save();render();toast('New block started')}),
   'ob-goal':b=>{const g=ob.p.goals,k=b.dataset.v,i=g.indexOf(k);if(i>=0)g.splice(i,1);else if(!blockedBy(k,g))g.push(k);drawOnboard()},
   'ob-pick':b=>{const k=b.dataset.k;ob.p[k]=k==='days'?+b.dataset.v:b.dataset.v;drawOnboard()},
   'ob-next':()=>{ob.step++;drawOnboard();window.scrollTo(0,0)},
@@ -477,7 +605,9 @@ document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='ex-search'){ui.q=t.value;ui.focusSearch=true;render();return}
   if(t.id==='log-name'&&data.active){data.active.name=t.value;save();return}
   if(t.dataset.f&&data.active){const s=data.active.ex[+t.dataset.i].sets[+t.dataset.j];s[t.dataset.f]=t.value.replace(/[^\d.]/g,'');save();updateLogStats()}});
-document.addEventListener('change',e=>{if(e.target.id==='rest-sel'){ui.restTotal=+e.target.value;toast(`Rest timer set to ${ui.restTotal}s`)}});
+document.addEventListener('submit',e=>{if(e.target.dataset.form==='weighin'){e.preventDefault();const kg=parseFloat($('#wi-kg').value);if(!(kg>=30&&kg<=300)){toast('Enter a weight between 30 and 300 kg');return}
+  data.weighins.push({t:Date.now(),kg});data.profile.bw=kg;save();render();toast('Weight logged')}});
+document.addEventListener('change',e=>{if(e.target.id==='g-ex')goalHint();if(e.target.id==='rest-sel'){ui.restTotal=+e.target.value;toast(`Rest timer set to ${ui.restTotal}s`)}});
 
 /* ---------------- Boot ---------------- */
 (()=>{const s=store.get('rf_session');if(s&&users[s])signIn(s)})();
