@@ -177,6 +177,12 @@ const ICON={
  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>',
  workout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4m3-6v8m12-8v8m3-6v4M6 12h12"/></svg>',
  exercises:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+ lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+ crown:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>',
+ 'a-overview':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+ 'a-users':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .6 3.2 2.2 3.6 5"/></svg>',
+ 'a-tx':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>',
+ logout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>',
  progress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/></svg>',
  history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>',
  profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
@@ -201,6 +207,8 @@ $('#login-form').addEventListener('submit',async e=>{e.preventDefault();
   const em=$('#login-email').value.trim().toLowerCase(),pw=$('#login-password').value;
   if(!em||!pw)return err('#login-err','Enter your email and password.');
   const u=users[em];if(!u||u.pw!==await hash(pw))return err('#login-err','That email and password don\'t match an account in this browser.');
+  if(u.disabled)return err('#login-err','This account has been disabled by an administrator.');
+  if(u.role==='admin')return enterAdmin(em);
   signIn(em)});
 try{$('#reg-dob').max=new Date().toISOString().slice(0,10)}catch(e){}
 $('#register-form').addEventListener('submit',async e=>{e.preventDefault();
@@ -245,18 +253,19 @@ function drawOnboard(){const p=ob.p,st=ob.step,first=esc(users[me].name.split(' 
     <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-next" ${p.level&&p.wdays.length>=2&&p.wdays.length<=6?'':'disabled'}>Continue</button></div>`;
   if(st===3)h=`<h1>Almost done</h1><p class="subtitle">Your bodyweight is optional. We use it for your protein target and a rough calorie estimate.</p>
     <div class="field"><label for="ob-bw">Bodyweight</label><div class="unit"><input class="input" id="ob-bw" inputmode="decimal" placeholder="e.g. 70" value="${esc(p.bw)}"><span>kg</span></div></div>
-    <p class="q">Follow a 12-week plan?</p><div class="opts" role="group" aria-label="Follow a plan">${opt('follow','yes','Yes, follow a plan','RepForge sets your sets, reps and weights every week. Easy weeks are built in.')}${opt('follow','no','No, I\'ll train my own way','Use routines and log freely. You can start a plan any time.')}</div>
+    <p class="q">Follow a 12-week plan?</p><div class="opts" role="group" aria-label="Follow a plan">${opt('follow','yes','Yes, follow a plan'+(isPro()?'':' · Premium'),'RepForge sets your sets, reps and weights every week. Easy weeks are built in.'+(isPro()?'':' You can check out after setup.'))}${opt('follow','no','No, I\'ll train my own way','Use routines and log freely. You can start a plan any time.')}</div>
     ${ob.err?`<div class="err">${esc(ob.err)}</div>`:''}
     <div class="ob-nav"><button type="button" class="btn" data-act="ob-back">Back</button><button type="button" class="btn primary" data-act="ob-done">${ob.edit?'Update my plan':'Build my plan'}</button></div>`;
   $('#v-onboard').innerHTML=bar+h}
 function obDone(){const raw=String(ob.p.bw).trim();const bw=raw?parseFloat(raw):null;
   if(raw&&!(bw>=30&&bw<=300)){ob.err='Enter a bodyweight between 30 and 300 kg, or leave it blank.';drawOnboard();return}
-  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.wdays.length,wdays:[...ob.p.wdays].sort((a,b)=>a-b),bw};ensureProgress();if(ob.p.follow==='yes'&&!following()){data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null}else if(ob.p.follow==='no'&&following())data.program.active=false;if(bw){const l=data.weighins[data.weighins.length-1];if(!l||l.kg!==bw)data.weighins.push({t:Date.now(),kg:bw})}save();enterApp();toast(ob.edit?'Plan updated':following()?'Your 12-week plan starts this week':'Your plan is ready')}
-function signOut(){store.del('rf_session');me=data=null;stopRest();$('#app').hidden=true;$('#resume').hidden=true;$('#auth').hidden=false;showAuth('login');$('#login-password').value=''}
+  data.profile={goal:ob.p.goals[0],goals:[...ob.p.goals],level:ob.p.level,days:ob.p.wdays.length,wdays:[...ob.p.wdays].sort((a,b)=>a-b),bw};ensureProgress();let goPro=false;if(ob.p.follow==='yes'&&!following()&&!isPro()){ui.pendingPlan=true;goPro=true}else if(ob.p.follow==='yes'&&!following()){data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null}else if(ob.p.follow==='no'&&following())data.program.active=false;if(bw){const l=data.weighins[data.weighins.length-1];if(!l||l.kg!==bw)data.weighins.push({t:Date.now(),kg:bw})}save();enterApp();if(goPro){ui.proReason='The 12-week plan';ui.view='premium';render();toast('Your goal plan is ready. The 12-week plan needs Premium.');return}toast(ob.edit?'Plan updated':following()?'Your 12-week plan starts this week':'Your plan is ready')}
+function signOut(){store.del('rf_session');me=data=null;ui.admin=false;closeModal();applyAccent(null);ui.view='home';stopRest();$('#app').hidden=true;$('#resume').hidden=true;$('#auth').hidden=false;showAuth('login');$('#login-password').value=''}
 async function demo(){const em='demo@repforge.app';
   if(!users[em]){users[em]={name:'Alex Reyes',gender:'male',dob:'2003-05-14',pw:await hash('repforge123'),created:Date.now()-30*DAY,data:{history:seedHistory(),routines:[mkRoutine(TPL[1]),mkRoutine(TPL[2])],active:null}};store.set('rf_users',users)}
   if(!users[em].data.profile){users[em].data.profile={goal:'muscle',goals:['muscle','strength'],level:'mid',days:4,bw:72};store.set('rf_users',users)}
   {const d=users[em].data;if(d.program&&d.program.active==null)d.program.active=true;if(!d.program){d.program={start:weekStart(Date.now())-4*7*DAY,active:true};d.liftGoals=[{id:uid(),ex:'bench',target:85,from:76,created:Date.now()-28*DAY},{id:uid(),ex:'squat',target:120,from:100,created:Date.now()-28*DAY}];d.bwGoal={target:75,from:70.5,created:Date.now()-28*DAY};d.weighins=[[28,70.5],[21,70.9],[14,71.4],[7,71.6],[1,72]].map(([a,kg])=>({t:Date.now()-a*DAY,kg}));d.baselines={};store.set('rf_users',users)}}
+  {const u=users[em];if(!u.tx){const t=Date.now()-20*DAY;u.tx=[{id:'RF-'+new Date(t).getFullYear()+'-104233',t,plan:'yearly',base:1290,discount:258,promo:'STUDENT20',amount:1032,method:'card',detail:'Visa •••• 4242',status:'paid',from:t,to:addMonths(t,12)}];u.sub={plan:'yearly',status:'active',since:t,until:addMonths(t,12),tx:u.tx[0].id};store.set('rf_users',users)}}
   signIn(em)}
 function seedHistory(){const base={bench:60,incline_db:22,latpull:50,db_row:24,lat_raise:8,pushdown:20,squat:80,rdl:70,bss:14,leg_ext:40,calf:60,hanging_leg:0};
   const days=[24,22,19,17,15,12,10,8,5,3,1];const out=[];
@@ -365,7 +374,7 @@ function planHero(){const p=data.profile,B=BLOCKS[blockType(p)],cw=curWeek();
     <p><b style="color:#fff">${when}: Day ${n.dn} · ${esc(n.t.name)}</b> · ${B.ph[R.ph]} phase · main lifts ${main}${R.dl?' · deload week, go light':''}</p></div>
     <div class="hero-acts"><button class="btn on-navy" data-act="go" data-v="progress">View plan</button><button class="btn primary" data-act="plan-start">${n.k===0?"Start today's workout":'Start next workout'}</button></div></div>`}
 function planOffer(){const B=BLOCKS[blockType(data.profile)];
-  return `<div class="panel offer"><div style="min-width:0"><div class="eyebrow">Optional</div><h3>Follow a 12-week plan</h3><p>Get a ${B.name.toLowerCase()} built around your goal (${esc(goalNames(data.profile))}). RepForge sets your sets, reps and weights every week, with easy weeks built in. You're not following a plan right now.</p></div>
+  return `<div class="panel offer"><div style="min-width:0"><div class="eyebrow">${isPro()?'Included in Premium':'Premium'}</div><h3>Follow a 12-week plan</h3><p>Get a ${B.name.toLowerCase()} built around your goal (${esc(goalNames(data.profile))}). RepForge sets your sets, reps and weights every week, with easy weeks built in. You're not following a plan right now.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="go" data-v="progress">See how it works</button><button class="btn primary" data-act="plan-follow">Follow the plan</button></div></div>`}
 const e1=(kg,r)=>r<=1?kg:kg*(1+Math.min(r,12)/30);
 const r25=x=>Math.round(x/2.5)*2.5;
@@ -480,10 +489,11 @@ function vProgress(){ensureProgress();const fol=following(),p=data.profile,cw=cu
       ${anyNoLog?'<p class="hint" style="margin:0">— means you haven\'t logged that exercise yet. Pick a weight you can lift for the reps shown with 2 reps to spare; next time RepForge will suggest one.</p>':''}
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="start-week-day">Start Week ${sel} · Day ${dk+1} with these numbers</button></div>
     </div></section>
+  ${!isPro()?`<section><div class="section-title"><h2>Lift projection and goals</h2></div>${lockPanel('Projections and goal predictions','See where your lifts are heading, set goals like a 100 kg bench, and get a predicted date for reaching them. Track your bodyweight against a target too.','Lift projections and goal predictions')}</section>${reportSection()}`:`
   <section><div class="section-title"><h2>Lift projection</h2><small>based on your logs, level and goal</small></div>
     ${lifts.length?`<div class="chips" style="margin-bottom:12px">${lifts.map(id=>`<button class="chip" data-act="pl-sel" data-id="${id}" aria-pressed="${ui.pl===id}">${esc(EXM[id].name)}</button>`).join('')}</div>${liftChart}`:'<div class="panel empty"><b>Nothing to project yet</b>Log a few workouts and your estimated maxes and projections show up here.</div>'}</section>
   <section><div class="section-title"><h2>Goals</h2><button class="btn sm primary" data-act="goal-add">Add goal</button></div>
-    ${gCards||bwCard?`<div class="goals">${bwCard}${gCards}</div>`:'<div class="panel empty"><b>No goals yet</b>Set a target like a 100 kg bench or a bodyweight of 75 kg and RepForge predicts when you will hit it.</div>'}</section>
+    ${gCards||bwCard?`<div class="goals">${bwCard}${gCards}</div>`:'<div class="panel empty"><b>No goals yet</b>Set a target like a 100 kg bench or a bodyweight of 75 kg and RepForge predicts when you will hit it.</div>'}</section>${reportSection()}`}
   <p class="muted" style="font-size:12.5px;margin:0">${T('e1rm','Estimated 1RM')} uses the ${T('epley','Epley formula')} on your best set each session. Projections assume you train consistently and slow down over time; real progress varies.</p>`}
 function startWeekDay(){const p=data.profile,sel=ui.pw&&ui.pw<=12?ui.pw:Math.min(Math.max(curWeek(),1),12),R=weekRx(sel),sc=schedule(p),t=TPLM[sc[ui.pday]];
   const ahead=Math.max(0,Math.round((progStart()+(sel-1)*7*DAY-Date.now())/(7*DAY)));
@@ -513,13 +523,235 @@ function goalSave(t){const E=m=>{const e=$('#g-err');e.textContent=m;e.hidden=fa
     data.bwGoal={target:tg,from:bw,created:Date.now()}}
   save();closeModal();render();toast('Goal added')}
 
+/* ---------------- Premium, billing & customization ---------------- */
+const PRICES={monthly:{name:'Monthly',price:149,per:'month',months:1},yearly:{name:'Yearly',price:1290,per:'year',months:12}};
+const PROMOS={STUDENT20:{pct:20,label:'Student discount (20%)'},FORGE10:{pct:10,label:'Launch promo (10%)'}};
+const peso=n=>'₱'+Number(n).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pesoR=n=>'₱'+Math.round(n).toLocaleString('en-PH');
+function addMonths(t,m){const d=new Date(t);d.setMonth(d.getMonth()+m);return d.getTime()}
+const isProU=u=>{const x=u&&u.sub;return !!(x&&x.until>Date.now()&&x.status!=='refunded'&&x.status!=='revoked')};
+const isPro=()=>!!me&&isProU(users[me]);
+const FREE_ROUTINES=3;
+const FEATS=[['Workout logging and history',1,1],['Exercise library with video tutorials',1,1],['Suggested templates and goal-based tips',1,1],['Custom routines','Up to 3','Unlimited'],['Basic stats: volume, streak, PRs',1,1],['12-week periodized plan',0,1],['Lift projections and 1RM trends',0,1],['Goal predictions and bodyweight tracking',0,1],['Monthly training reports',0,1],['Custom app colors',0,1]];
+const CHK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>';
+function lockPanel(title,text,reason){return `<div class="panel lock"><div class="lock-ic">${ICON.lock}</div><div class="grow"><b>${title}</b><p>${text}</p></div><button class="btn primary" data-act="go-premium" data-r="${esc(reason||title)}">See Premium</button></div>`}
+function needPro(reason){if(isPro())return false;closeModal();ui.proReason=reason;ui.view='premium';render();window.scrollTo(0,0);return true}
+function cycleCost(){const pl=PRICES[ui.bill||'yearly'],pr=ui.promo&&PROMOS[ui.promo],disc=pr?Math.round(pl.price*pr.pct)/100:0,total=Math.round((pl.price-disc)*100)/100;return{pl,pr,disc,total,vat:Math.round(total*12/112*100)/100}}
+
+function vPremium(){const u=users[me],pro=isPro(),bill=ui.bill||'yearly',save=Math.round((1-PRICES.yearly.price/(PRICES.monthly.price*12))*100);
+  const reason=ui.proReason?`<div class="notice"><div class="lock-ic" style="width:36px;height:36px">${ICON.lock}</div><div><b>${esc(ui.proReason)} is part of Premium</b>Upgrade to unlock it, along with everything below.</div></div>`:'';
+  const feats=FEATS.map(([n,f,p])=>`<tr><td>${n}</td><td>${f===1?'<span class="yes">✓</span>':f===0?'<span class="no">—</span>':f}</td><td>${p===1?'<span class="yes">✓</span>':p}</td></tr>`).join('');
+  const sub=u.sub;
+  const top=pro?`<div class="hero-card"><div style="position:relative;z-index:1"><span class="pro-badge">${ICON.crown} Premium</span><h2 style="margin-top:12px">You're on RepForge Premium</h2><p>${PRICES[sub.plan]?PRICES[sub.plan].name+' plan':'Complimentary access'} · ${sub.status==='cancelled'?'cancelled, access until ':'renews on '}${new Date(sub.until).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</p></div><div class="hero-acts"><button class="btn primary" data-act="go" data-v="profile">Manage billing</button></div></div>`
+   :`${reason}<div class="seg" style="max-width:320px"><button type="button" data-act="bill" data-b="monthly" aria-pressed="${bill==='monthly'}">Monthly</button><button type="button" data-act="bill" data-b="yearly" aria-pressed="${bill==='yearly'}">Yearly · save ${save}%</button></div>
+   <div class="price-grid">
+    <div class="panel price"><h3>Free</h3><div class="amt">₱0<small> forever</small></div><p class="muted" style="margin:0">Everything you need to plan and log workouts.</p><ul>${FEATS.filter(f=>f[1]).map(f=>`<li>${CHK}<span>${f[0]}${f[1]!==1?' ('+f[1].toLowerCase()+')':''}</span></li>`).join('')}</ul><button class="btn" disabled style="opacity:.6">Your current plan</button></div>
+    <div class="panel price pro"><span class="pro-badge ribbon">${ICON.crown} Most popular</span><h3>Premium</h3>
+      <div class="amt">${pesoR(PRICES[bill].price)}<small> / ${PRICES[bill].per}</small></div>
+      <p class="muted" style="margin:0">${bill==='yearly'?`That's ${peso(PRICES.yearly.price/12)} a month, billed yearly.`:'Billed monthly. Cancel anytime.'}</p>
+      <ul><li>${CHK}<span>Everything in Free</span></li>${FEATS.filter(f=>f[2]&&f[1]!==1).map(f=>`<li>${CHK}<span>${f[0]}${f[2]!==1?' ('+String(f[2]).toLowerCase()+')':''}</span></li>`).join('')}</ul>
+      <button class="btn primary block" data-act="go" data-v="checkout">Continue to checkout</button></div>
+   </div>
+   <p class="muted" style="margin:0;font-size:13.5px">Students get 20% off with the code <b style="color:var(--fg)">STUDENT20</b> at checkout.</p>`;
+  return `<div class="head"><div><div class="eyebrow">RepForge Premium</div><h1>${pro?'Your plan':'Train with a plan that adapts to you'}</h1><p>The 12-week plan, projections and reports. Free stays free.</p></div></div>
+  ${top}
+  <section><div class="section-title"><h2>Compare plans</h2></div><div class="panel" style="overflow-x:auto"><table class="tbl feat-tbl"><thead><tr><th>Feature</th><th>Free</th><th>Premium</th></tr></thead><tbody>${feats}</tbody></table></div></section>
+  <section><div class="section-title"><h2>Questions</h2></div><div class="tips">
+    <div class="tip"><span class="k">Billing</span><b>Can I cancel anytime?</b><p>Yes. Cancel from Profile and you keep Premium until the end of the period you paid for.</p></div>
+    <div class="tip"><span class="k">Data</span><b>What happens to my data if I downgrade?</b><p>Nothing is deleted. Your logs, routines and goals stay; Premium sections lock until you upgrade again.</p></div>
+    <div class="tip"><span class="k">Payment</span><b>How can I pay?</b><p>Credit or debit card, or an e-wallet such as GCash or Maya.</p></div></div></section>`}
+
+function vCheckout(){if(isPro()){ui.view='premium';return vPremium()}
+  const c=ui.co=ui.co||{},bill=ui.bill||'yearly',pm=ui.pm||'card',k=cycleCost(),u=users[me];
+  const renew=addMonths(Date.now(),k.pl.months);
+  return `<div class="head"><div><div class="eyebrow">Checkout</div><h1>Upgrade to Premium</h1><p>${esc(u.name)} · ${esc(me)}</p></div><button class="btn" data-act="go" data-v="premium">Back</button></div>
+  <div class="notice"><div class="lock-ic" style="width:36px;height:36px">${ICON.lock}</div><div style="flex:1;min-width:0"><b>Demo checkout</b>This is a class prototype. No real payment is processed and nothing you type leaves this browser. Don't enter real card details; use the test card 4242 4242 4242 4242.</div><button class="btn sm" data-act="co-test">Fill test card</button></div>
+  <div class="co-grid">
+   <div style="display:grid;gap:14px;min-width:0">
+    <div class="panel co-step"><h3><span class="n">1</span>Choose your billing</h3>
+      <div class="opts" style="margin:0">${['monthly','yearly'].map(b=>`<button type="button" class="opt" data-act="bill" data-b="${b}" aria-pressed="${bill===b}"><span class="grow"><b>${PRICES[b].name} · ${pesoR(PRICES[b].price)}/${PRICES[b].per}</b><small>${b==='yearly'?`${peso(PRICES.yearly.price/12)} a month · save ${pesoR(PRICES.monthly.price*12-PRICES.yearly.price)} a year`:'Most flexible. Cancel anytime.'}</small></span><span class="ord">${bill===b?'✓':''}</span></button>`).join('')}</div></div>
+    <div class="panel co-step"><h3><span class="n">2</span>Payment method</h3>
+      <div class="seg"><button type="button" data-act="pm" data-m="card" aria-pressed="${pm==='card'}">Credit / debit card</button><button type="button" data-act="pm" data-m="ewallet" aria-pressed="${pm==='ewallet'}">E-wallet</button></div>
+      ${pm==='card'?`<div class="field"><label for="co-name">Name on card</label><input class="input" id="co-name" autocomplete="off" placeholder="${esc(u.name)}" value="${esc(c['co-name']||'')}"></div>
+      <div class="field"><label for="co-card">Card number</label><input class="input" id="co-card" inputmode="numeric" autocomplete="off" placeholder="4242 4242 4242 4242" maxlength="19" value="${esc(c['co-card']||'')}"></div>
+      <div class="field-row"><div class="field"><label for="co-exp">Expiry</label><input class="input" id="co-exp" inputmode="numeric" autocomplete="off" placeholder="MM/YY" maxlength="5" value="${esc(c['co-exp']||'')}"></div><div class="field"><label for="co-cvc">CVC</label><input class="input" id="co-cvc" inputmode="numeric" autocomplete="off" placeholder="123" maxlength="4" value="${esc(c['co-cvc']||'')}"></div></div>`
+      :`<div class="field"><label for="co-wallet">E-wallet</label><select class="input" id="co-wallet"><option value="GCash" ${c['co-wallet']!=='Maya'?'selected':''}>GCash</option><option value="Maya" ${c['co-wallet']==='Maya'?'selected':''}>Maya</option></select></div>
+      <div class="field"><label for="co-mobile">Mobile number</label><input class="input" id="co-mobile" inputmode="numeric" autocomplete="off" placeholder="09XX XXX XXXX" maxlength="11" value="${esc(c['co-mobile']||'')}"></div>
+      <p class="hint" style="margin:0">In a real app you would be sent to the e-wallet to approve the payment. Here it is approved instantly.</p>`}</div>
+   </div>
+   <aside class="panel co-sum"><h3 style="font-size:16px;font-weight:850">Order summary</h3>
+     <div class="sum-row"><span>RepForge Premium · ${k.pl.name}</span><span>${peso(k.pl.price)}</span></div>
+     ${k.pr?`<div class="sum-row" style="color:var(--green-ink)"><span>${k.pr.label}</span><span>−${peso(k.disc)}</span></div>`:''}
+     <div class="promo"><input class="input" id="co-promo" placeholder="Promo code" value="${esc(c['co-promo']||ui.promo||'')}" aria-label="Promo code"><button class="btn" data-act="promo">${ui.promo?'Remove':'Apply'}</button></div>
+     ${ui.promoMsg?`<p class="${ui.promoOk?'ok-msg':'err'}" style="margin:0">${esc(ui.promoMsg)}</p>`:''}
+     <div class="sum-row total"><span>Total today</span><span>${peso(k.total)}</span></div>
+     <div class="sum-row"><span class="muted">Includes 12% VAT</span><span class="muted">${peso(k.vat)}</span></div>
+     <p class="muted" style="margin:0;font-size:13px">Renews on ${new Date(renew).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})} at ${peso(k.pl.price)}. Cancel anytime from Profile.</p>
+     <p id="co-err" class="err" hidden style="margin:0"></p>
+     <button class="btn primary block" id="co-pay" data-act="pay">Pay ${peso(k.total)}</button>
+   </aside>
+  </div>`}
+function luhn(n){let s=0,d=false;for(let i=n.length-1;i>=0;i--){let x=+n[i];if(d){x*=2;if(x>9)x-=9}s+=x;d=!d}return s%10===0}
+function pay(){const c=ui.co||{},pm=ui.pm||'card',E=m=>{const e=$('#co-err');e.textContent=m;e.hidden=false};let detail;
+  if(pm==='card'){const name=(c['co-name']||'').trim(),num=(c['co-card']||'').replace(/\D/g,''),exp=c['co-exp']||'',cvc=c['co-cvc']||'';
+    if(!name)return E('Enter the name on the card.');
+    if(num.length!==16||!luhn(num))return E('Enter a valid 16-digit card number. For this demo use 4242 4242 4242 4242.');
+    const m=exp.match(/^(\d{2})\/(\d{2})$/);if(!m||+m[1]<1||+m[1]>12)return E('Enter the expiry date as MM/YY.');
+    if(new Date(2000+ +m[2],+m[1],1)<=new Date())return E('This card has expired. Check the expiry date.');
+    if(!/^\d{3,4}$/.test(cvc))return E('Enter the 3- or 4-digit CVC on the back of the card.');
+    detail=(num[0]==='4'?'Visa':num[0]==='5'?'Mastercard':'Card')+' •••• '+num.slice(-4)}
+  else{const mob=(c['co-mobile']||'').replace(/\D/g,'');if(!/^09\d{9}$/.test(mob))return E('Enter an 11-digit mobile number starting with 09.');detail=(c['co-wallet']||'GCash')+' · '+mob.slice(0,4)+' ••• '+mob.slice(-4)}
+  const b=$('#co-pay');b.disabled=true;b.textContent='Processing payment…';
+  setTimeout(()=>{const k=cycleCost(),u=users[me],t=Date.now(),id='RF-'+new Date().getFullYear()+'-'+String(Math.floor(100000+Math.random()*899999));
+    const tx={id,t,plan:ui.bill||'yearly',base:k.pl.price,discount:k.disc,promo:k.pr?ui.promo:null,amount:k.total,method:pm,detail,status:'paid',from:t,to:addMonths(t,k.pl.months)};
+    u.tx=(u.tx||[]).concat(tx);u.sub={plan:tx.plan,status:'active',since:t,until:tx.to,tx:id};
+    if(ui.pendingPlan&&!following()){ensureProgress();data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null}
+    save();ui.co={};ui.promo=null;ui.promoMsg='';ui.proReason=null;ui.lastTx=id;ui.view='receipt';render();window.scrollTo(0,0);toast('Payment successful')},1200)}
+function receiptHtml(u,tx,em){return `<dl>
+  <dt>Receipt no.</dt><dd>${tx.id}</dd><dt>Date</dt><dd>${new Date(tx.t).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</dd>
+  <dt>Billed to</dt><dd>${esc(u.name)}<br><span class="muted" style="font-weight:500">${esc(em)}</span></dd>
+  <dt>Plan</dt><dd>RepForge Premium · ${PRICES[tx.plan]?PRICES[tx.plan].name:'Complimentary'}</dd>
+  <dt>Period</dt><dd>${new Date(tx.from).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} – ${new Date(tx.to).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</dd>
+  <dt>Payment method</dt><dd>${esc(tx.detail)}</dd></dl><hr><dl>
+  <dt>Subtotal</dt><dd>${peso(tx.base)}</dd>${tx.discount?`<dt>Discount${tx.promo?' ('+tx.promo+')':''}</dt><dd>−${peso(tx.discount)}</dd>`:''}
+  <dt style="color:var(--fg);font-weight:800">Total paid</dt><dd style="font-size:17px;font-weight:850">${peso(tx.amount)}</dd>
+  <dt>VAT included (12%)</dt><dd>${peso(Math.round(tx.amount*12/112*100)/100)}</dd>
+  <dt>Status</dt><dd>${tx.status==='refunded'?'<span class="pill bad">Refunded</span>':'<span class="pill pro">Paid</span>'}</dd></dl>`}
+function vReceipt(){const u=users[me],tx=(u.tx||[]).find(x=>x.id===ui.lastTx);if(!tx){ui.view='premium';return vPremium()}
+  return `<div class="panel rcpt"><div class="rcpt-ok">${CHK}</div><div><div class="eyebrow">Payment successful</div><h1 style="font-size:28px;font-weight:850;margin-top:6px">Welcome to Premium, ${esc(u.name.split(' ')[0])}.</h1><p class="muted" style="margin:6px 0 0">${following()?'Your 12-week plan is set up and starts this week.':'Projections, reports, the 12-week plan and custom colors are now unlocked.'}</p></div>
+   ${receiptHtml(u,tx,me)}
+   <p class="hint" style="margin:0">Prototype receipt. No real payment was made.</p>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="go" data-v="${following()?'home':'progress'}">${following()?'See my plan':'Explore Premium features'}</button><button class="btn" data-act="go" data-v="profile">View billing</button></div></div>`}
+function rcptModal(u,tx,em){openModal(`<div class="sheet-head"><div style="flex:1;min-width:0"><div class="eyebrow">Receipt</div><h2>${tx.id}</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></div><div class="sheet-body rcpt" style="padding:18px 20px">${receiptHtml(u,tx,em)}</div><div class="sheet-foot"><button class="btn primary" data-act="close">Close</button></div>`)}
+const ACCENTS={forge:{name:'Forge',c:'#88bd72'},
+ ember:{name:'Ember',c:'#e8955a',l:['#e8955a','#f0a874','#a4531c','#fbe9dc','#2b1406'],d:['#f3b184','#3a2213']},
+ ocean:{name:'Ocean',c:'#6aa9d8',l:['#6aa9d8','#86bae2','#22618f','#e1eef8','#08223a'],d:['#9cc9ec','#13293b']},
+ violet:{name:'Violet',c:'#a58be0',l:['#a58be0','#b7a1e8','#5f3fb0','#eee8fa','#1d1240'],d:['#c6b4f2','#251c3d']}};
+function applyAccent(k){let el=document.getElementById('accent-style');if(!el){el=document.createElement('style');el.id='accent-style';(document.head||document.body).appendChild(el)}
+  const a=ACCENTS[k];if(!a||!a.l){el.textContent='';return}
+  const dk=`--green-ink:${a.d[0]};--green-soft:${a.d[1]}`;
+  el.textContent=`:root{--green:${a.l[0]};--green-hover:${a.l[1]};--green-ink:${a.l[2]};--green-soft:${a.l[3]};--on-green:${a.l[4]}}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${dk}}}:root[data-theme="dark"]{${dk}}`}
+const curAccent=()=>isPro()&&data&&data.accent?data.accent:'forge';
+
+/* ---------------- Monthly report (Premium) ---------------- */
+function monthRange(off){const d=new Date();d.setDate(1);d.setHours(0,0,0,0);d.setMonth(d.getMonth()-off);const a=d.getTime();d.setMonth(d.getMonth()+1);return[a,d.getTime()]}
+function monthStats(off){const[a,b]=monthRange(off),ws=data.history.filter(w=>w.start>=a&&w.start<b),mus={};
+  ws.forEach(w=>w.ex.forEach(x=>{const m=EXM[x.id]&&EXM[x.id].m;if(m)mus[m]=(mus[m]||0)+x.sets.filter(z=>z.done).length}));
+  const weeks=new Set(ws.map(w=>weekStart(w.start))).size,tw=Math.max(1,Math.ceil((Math.min(b,Date.now())-weekStart(a))/(7*DAY)));
+  const lifts={};ws.slice().sort((p,q)=>p.start-q.start).forEach(w=>w.ex.forEach(x=>{let m=0;x.sets.forEach(z=>{if(z.done&&+z.kg>0)m=Math.max(m,e1(+z.kg,+z.reps||1))});if(m&&!EXM[x.id].u){lifts[x.id]=lifts[x.id]||{first:m,last:m};lifts[x.id].last=m}}));
+  const imp=Object.entries(lifts).map(([id,v])=>({id,d:v.last-v.first,last:v.last})).filter(x=>x.d>0).sort((p,q)=>q.d-p.d).slice(0,3);
+  return{a,n:ws.length,vol:ws.reduce((s,w)=>s+vol(w),0),time:ws.reduce((s,w)=>s+(w.end-w.start),0),sets:ws.reduce((s,w)=>s+w.ex.reduce((t,x)=>t+x.sets.filter(z=>z.done).length,0),0),mus,weeks,tw:Math.min(tw,5),imp}}
+function reportSection(){if(!isPro())return `<section><div class="section-title"><h2>Monthly report</h2></div>${lockPanel('Monthly training reports','See each month at a glance: workouts, volume, time trained, muscles worked and your biggest strength gains, compared with the month before.','Monthly reports')}</section>`;
+  const off=ui.rm||0,m=monthStats(off),pm=monthStats(off+1),dl=(x,y,f)=>{if(!y)return '';const d=(x-y)/y*100;return `<div class="delta ${d>=0?'up':'down'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(0)}% vs last month</div>`};
+  const mx=Math.max(1,...Object.values(m.mus));
+  return `<section><div class="section-title"><h2>Monthly report</h2><div class="seg" style="width:auto"><button type="button" data-act="rm" data-o="0" aria-pressed="${off===0}">This month</button><button type="button" data-act="rm" data-o="1" aria-pressed="${off===1}">Last month</button></div></div>
+   <div class="panel blk-panel"><div class="eyebrow">${new Date(m.a).toLocaleDateString(undefined,{month:'long',year:'numeric'})}</div>
+    <div class="stats"><div class="stat" style="padding:0"><div class="lbl">Workouts</div><div class="v num">${m.n}</div>${dl(m.n,pm.n)}</div><div class="stat" style="padding:0"><div class="lbl">Volume</div><div class="v num">${kfmt(m.vol)}<small>kg</small></div>${dl(m.vol,pm.vol)}</div><div class="stat" style="padding:0"><div class="lbl">Time trained</div><div class="v num">${fmtDur(m.time)}</div>${dl(m.time,pm.time)}</div><div class="stat" style="padding:0"><div class="lbl">Consistency</div><div class="v num">${m.weeks}<small>of ${m.tw} wks</small></div></div></div>
+    <div class="two"><div><div class="lbl" style="margin-bottom:10px">Sets per muscle group</div><div style="display:grid;gap:8px">${Object.keys(m.mus).length?Object.entries(m.mus).sort((p,q)=>q[1]-p[1]).map(([k,v])=>`<div class="mbar"><span>${k}</span><span class="tr"><i style="width:${v/mx*100}%"></i></span><span>${v} sets</span></div>`).join(''):'<p class="muted" style="margin:0">No sets logged this month yet.</p>'}</div></div>
+     <div><div class="lbl" style="margin-bottom:10px">Biggest strength gains</div>${m.imp.length?`<div class="list">${m.imp.map(x=>`<div class="row" style="padding:10px 0"><div class="grow"><div class="t">${esc(EXM[x.id].name)}</div><div class="s">${T('e1rm','Est. 1RM')} now ${Math.round(x.last)} kg</div></div><b class="num" style="color:var(--green-ink)">+${x.d.toFixed(1)} kg</b></div>`).join('')}</div>`:'<p class="muted" style="margin:0">Log the same lift more than once this month to see gains.</p>'}</div></div>
+   </div></section>`}
+
+/* ---------------- Admin ---------------- */
+const ADMIN_EMAIL='admin@repforge.app';
+async function ensureAdmin(){if(!users[ADMIN_EMAIL]){users[ADMIN_EMAIL]={name:'RepForge Admin',role:'admin',pw:await hash('admin1234'),created:Date.now()};store.set('rf_users',users)}}
+function prng(seed){return()=>{seed=(seed*1664525+1013904223)%4294967296;return seed/4294967296}}
+function seedSample(){const R=prng(42),pick=a=>a[Math.floor(R()*a.length)];
+  const names=['Maria Santos','Joshua Dela Cruz','Andrea Reyes','Paolo Garcia','Bea Mendoza','Carlo Bautista','Nicole Villanueva','Miguel Ramos','Kim Navarro','Jerome Castillo','Trisha Aquino','Ralph Fernandez','Janelle Torres','Enzo Lim'];
+  const goals=Object.keys(GOALS),now=Date.now();
+  names.forEach((n,i)=>{const em=n.toLowerCase().replace(/ /g,'.').replace('dela.','dela')+'@example.com';if(users[em])return;
+    const created=now-Math.floor((8+R()*170))*DAY,nw=Math.floor(R()*55),hist=[];
+    for(let j=0;j<nw;j++){const st=created+R()*(now-created);hist.push({id:uid(),name:'Workout',start:st,end:st+(40+R()*40)*6e4,ex:[]})}hist.sort((a,b)=>b.start-a.start);
+    const g=pick(goals),u={name:n,gender:i%2?'male':'female',dob:`${1996+Math.floor(R()*10)}-0${1+Math.floor(R()*9)}-1${Math.floor(R()*9)}`,pw:'x',created,sample:true,
+      data:{history:hist,routines:[],active:null,profile:{goal:g,goals:[g],level:pick(['new','mid','adv']),days:3+Math.floor(R()*3)}},tx:[]};
+    if(R()<.48){const plan=R()<.55?'monthly':'yearly',since=created+R()*(now-created)*.6,P=PRICES[plan];let t=since,last;
+      const promo=R()<.3?'STUDENT20':null;
+      while(t<now){const disc=promo?Math.round(P.price*20)/100:0,amt=P.price-disc,id='RF-'+new Date(t).getFullYear()+'-'+String(100000+Math.floor(R()*899999));
+        last={id,t,plan,base:P.price,discount:disc,promo,amount:amt,method:R()<.6?'card':'ewallet',detail:R()<.6?'Visa •••• '+(1000+Math.floor(R()*8999)):(R()<.5?'GCash':'Maya')+' · 0917 ••• '+(1000+Math.floor(R()*8999)),status:'paid',from:t,to:addMonths(t,P.months)};
+        u.tx.push(last);t=last.to}
+      u.sub={plan,status:R()<.15?'cancelled':'active',since,until:last.to,tx:last.id}}
+    users[em]=u});
+  const al=users['joshua.delacruz@example.com'];if(al&&al.tx.length){const t=al.tx[al.tx.length-1];t.status='refunded';al.sub.status='refunded';al.sub.until=now-DAY}
+  const dis=users['enzo.lim@example.com'];if(dis)dis.disabled=true;
+  store.set('rf_users',users);store.set('rf_sample_seeded',true)}
+const allUsers=()=>Object.entries(users).filter(([e,u])=>u.role!=='admin');
+const allTx=()=>allUsers().flatMap(([em,u])=>(u.tx||[]).map(t=>({...t,em,u}))).sort((a,b)=>b.t-a.t);
+const lastActive=u=>{const h=u.data&&u.data.history;return h&&h.length?Math.max(...h.map(w=>w.start)):null};
+const ago=t=>{if(!t)return '—';const d=Math.floor((Date.now()-t)/DAY);return d<1?'Today':d===1?'Yesterday':d<30?d+' days ago':new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})};
+const planPill=u=>isProU(u)?`<span class="pill pro">Premium · ${PRICES[u.sub.plan]?PRICES[u.sub.plan].name:'Comp'}</span>`:'<span class="pill">Free</span>';
+const statusPill=u=>u.disabled?'<span class="pill bad">Disabled</span>':u.sub&&u.sub.status==='cancelled'&&isProU(u)?'<span class="pill warn">Cancelling</span>':'<span class="pill pro" style="background:var(--surface2);color:var(--fg)">Active</span>';
+const ADMIN_NAV=[['a-overview','Overview'],['a-users','Users'],['a-tx','Transactions']];
+function enterAdmin(em){me=em;data=null;ui.admin=true;store.set('rf_session',em);if(!store.get('rf_sample_seeded'))seedSample();applyAccent(null);
+  ui.view='a-overview';$('#auth').hidden=true;$('#app').hidden=false;renderAdmin();window.scrollTo(0,0)}
+function renderAdmin(){const nav=ADMIN_NAV.map(([v,l])=>`<button type="button" data-act="go" data-v="${v}" ${ui.view===v?'aria-current="page"':''}>${ICON[v]}<span>${l}</span></button>`).join('')+`<button type="button" data-act="logout">${ICON.logout}<span>Log out</span></button>`;
+  $('#nav').innerHTML=nav;$('#tabbar').innerHTML=nav;$('#tabbar').style.gridTemplateColumns='repeat(4,1fr)';
+  $('#side-plan').hidden=true;$('#side-pro').innerHTML='<span class="pro-badge">Admin console</span>';$('#side-name').textContent=users[me].name;$('#side-email').textContent=me;$('#resume').hidden=true;
+  $('#view').innerHTML=({'a-users':vAUsers,'a-tx':vATx}[ui.view]||vAOverview)()}
+function vAOverview(){const us=allUsers(),pro=us.filter(([,u])=>isProU(u)),tx=allTx(),paid=tx.filter(t=>t.status==='paid'),[ma]=monthRange(0);
+  const rev=paid.reduce((s,t)=>s+t.amount,0),revM=paid.filter(t=>t.t>=ma).reduce((s,t)=>s+t.amount,0);
+  const mrr=pro.filter(([,u])=>u.sub.status==='active').reduce((s,[,u])=>s+(u.sub.plan==='yearly'?PRICES.yearly.price/12:PRICES[u.sub.plan]?PRICES.monthly.price:0),0);
+  const wk=us.reduce((s,[,u])=>s+(u.data&&u.data.history?u.data.history.length:0),0),newM=us.filter(([,u])=>u.created>=ma).length;
+  const months=[...Array(6)].map((_,i)=>{const[a,b]=monthRange(5-i);return{a,v:paid.filter(t=>t.t>=a&&t.t<b).reduce((s,t)=>s+t.amount,0)}}),mx=niceMax(Math.max(1,...months.map(m=>m.v)));
+  const mon=pro.filter(([,u])=>u.sub.plan==='monthly').length,yr=pro.filter(([,u])=>u.sub.plan==='yearly').length;
+  return `<div class="head"><div><div class="eyebrow">Admin console</div><h1>Overview</h1><p>${us.length} accounts in this browser${us.some(([,u])=>u.sample)?' · includes sample accounts for the demo':''}.</p></div><button class="btn" data-act="a-reseed">Reset sample data</button></div>
+  <div class="kpis">
+   <div class="panel stat kpi"><div class="lbl">Total users</div><div class="v num">${us.length}</div><div class="sub">+${newM} this month</div></div>
+   <div class="panel stat kpi"><div class="lbl">Premium members</div><div class="v num">${pro.length}</div><div class="sub">${us.length?Math.round(pro.length/us.length*100):0}% conversion</div></div>
+   <div class="panel stat kpi"><div class="lbl">MRR</div><div class="v num">${pesoR(mrr)}</div><div class="sub">monthly recurring revenue</div></div>
+   <div class="panel stat kpi"><div class="lbl">Revenue this month</div><div class="v num">${pesoR(revM)}</div><div class="sub">${(n=>n+(n===1?' payment':' payments'))(paid.filter(t=>t.t>=ma).length)}</div></div>
+   <div class="panel stat kpi"><div class="lbl">All-time revenue</div><div class="v num">${pesoR(rev)}</div><div class="sub">${tx.filter(t=>t.status==='refunded').length} refunded</div></div>
+   <div class="panel stat kpi"><div class="lbl">Workouts logged</div><div class="v num">${fmtN(wk)}</div><div class="sub">across all users</div></div></div>
+  <div class="two"><section><div class="section-title"><h2>Revenue</h2><small>last 6 months, paid only</small></div>
+    <div class="panel chart"><div class="bars" style="grid-template-columns:repeat(6,1fr)"><div class="gl" style="bottom:100%"><span class="num">${pesoR(mx)}</span></div><div class="gl" style="bottom:50%"><span class="num">${pesoR(mx/2)}</span></div>
+     ${months.map((m,i)=>`<div class="bar ${i===5?'now':''}" style="height:${m.v/mx*100}%" title="${pesoR(m.v)}">${m.v?`<b class="num">${m.v>=1000?'₱'+(m.v/1000).toFixed(1)+'k':pesoR(m.v)}</b>`:''}</div>`).join('')}</div>
+     <div class="xlabels" style="grid-template-columns:repeat(6,1fr)">${months.map(m=>`<span>${new Date(m.a).toLocaleDateString(undefined,{month:'short'})}</span>`).join('')}</div></div></section>
+   <section><div class="section-title"><h2>Plan mix</h2><small>all users</small></div><div class="panel blk-panel" style="gap:12px">
+    ${[['Monthly',mon],['Yearly',yr],['Free',us.length-pro.length]].map(([k,v])=>`<div class="mbar"><span>${k}</span><span class="tr"><i style="width:${us.length?v/us.length*100:0}%"></i></span><span>${v}</span></div>`).join('')}
+    <p class="muted" style="margin:0;font-size:13px">${tx.filter(t=>t.promo).length} payments used a promo code.</p></div></section></div>
+  <div class="two"><section><div class="section-title"><h2>Recent transactions</h2><button class="linkbtn" data-act="go" data-v="a-tx">View all</button></div>
+    <div class="panel list">${tx.slice(0,5).map(t=>`<button class="row click" data-act="a-rcpt" data-id="${t.id}"><div class="grow"><div class="t">${esc(t.u.name)}</div><div class="s">${t.id} · ${ago(t.t)}</div></div><b class="num">${peso(t.amount)}</b></button>`).join('')||'<div class="empty">No transactions yet.</div>'}</div></section>
+   <section><div class="section-title"><h2>Newest users</h2><button class="linkbtn" data-act="go" data-v="a-users">View all</button></div>
+    <div class="panel list">${us.sort((a,b)=>b[1].created-a[1].created).slice(0,5).map(([em,u])=>`<button class="row click" data-act="a-user" data-em="${esc(em)}"><div class="ava">${initials(u.name)}</div><div class="grow"><div class="t">${esc(u.name)}</div><div class="s">Joined ${ago(u.created)}</div></div>${planPill(u)}</button>`).join('')}</div></section></div>`}
+function vAUsers(){const q=(ui.aq||'').toLowerCase(),f=ui.af||'All';
+  const list=allUsers().filter(([em,u])=>(!q||(u.name+' '+em).toLowerCase().includes(q))&&(f==='All'||(f==='Premium'&&isProU(u))||(f==='Free'&&!isProU(u))||(f==='Disabled'&&u.disabled))).sort((a,b)=>b[1].created-a[1].created);
+  return `<div class="head"><div><div class="eyebrow">Admin console</div><h1>Users</h1><p>${list.length} shown · click a user to manage their account.</p></div></div>
+  <div class="filters"><div class="search">${ICON.search}<input class="input" id="a-search" placeholder="Search by name or email" value="${esc(ui.aq||'')}" autocomplete="off"></div>
+   <div class="chips">${['All','Premium','Free','Disabled'].map(c=>`<button class="chip" data-act="a-filter" data-f="${c}" aria-pressed="${f===c}">${c}</button>`).join('')}</div></div>
+  <div class="panel" style="overflow-x:auto"><table class="tbl adm-tbl"><thead><tr><th>User</th><th>Plan</th><th>Goal</th><th>Joined</th><th class="r">Workouts</th><th>Last active</th><th>Status</th><th></th></tr></thead><tbody>
+   ${list.map(([em,u])=>{const p=u.data&&u.data.profile;return `<tr><td class="u"><b>${esc(u.name)}${u.sample?' <span class="pill" style="font-size:10px;padding:1px 6px">Sample</span>':''}</b><span>${esc(em)}</span></td><td>${planPill(u)}</td><td>${p?esc(goalNames(p)):'<span class="muted">Not set</span>'}</td><td>${new Date(u.created).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</td><td class="r num">${u.data&&u.data.history?u.data.history.length:0}</td><td>${ago(lastActive(u))}</td><td>${statusPill(u)}</td><td class="r"><button class="btn sm" data-act="a-user" data-em="${esc(em)}">Manage</button></td></tr>`}).join('')||'<tr><td colspan="8" class="muted">No users match.</td></tr>'}
+  </tbody></table></div>`}
+function vATx(){const q=(ui.tq||'').toLowerCase(),f=ui.tf||'All';
+  const list=allTx().filter(t=>(f==='All'||(f==='Paid'&&t.status==='paid')||(f==='Refunded'&&t.status==='refunded'))&&(!q||(t.id+' '+t.u.name+' '+t.em).toLowerCase().includes(q)));
+  const sum=list.filter(t=>t.status==='paid').reduce((s,t)=>s+t.amount,0);
+  return `<div class="head"><div><div class="eyebrow">Admin console</div><h1>Transactions</h1><p>${list.length} transactions · ${peso(sum)} paid in this view</p></div></div>
+  <div class="filters"><div class="search">${ICON.search}<input class="input" id="t-search" placeholder="Search receipt no., name or email" value="${esc(ui.tq||'')}" autocomplete="off"></div>
+   <div class="chips">${['All','Paid','Refunded'].map(c=>`<button class="chip" data-act="a-tfilter" data-f="${c}" aria-pressed="${f===c}">${c}</button>`).join('')}</div></div>
+  <div class="panel" style="overflow-x:auto"><table class="tbl adm-tbl"><thead><tr><th>Receipt</th><th>Customer</th><th>Plan</th><th>Method</th><th class="r">Amount</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>
+   ${list.map(t=>`<tr><td class="num"><button class="linkbtn" data-act="a-rcpt" data-id="${t.id}">${t.id}</button></td><td class="u"><b>${esc(t.u.name)}</b><span>${esc(t.em)}</span></td><td>${PRICES[t.plan]?PRICES[t.plan].name:'Comp'}${t.promo?` <span class="pill" style="font-size:10px">${t.promo}</span>`:''}</td><td>${esc(t.detail)}</td><td class="r num"><b>${peso(t.amount)}</b></td><td>${t.status==='refunded'?'<span class="pill bad">Refunded</span>':'<span class="pill pro">Paid</span>'}</td><td>${new Date(t.t).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</td><td class="r">${t.status==='paid'&&t.amount>0?`<button class="btn sm danger" data-act="a-refund" data-id="${t.id}">Refund</button>`:''}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No transactions match.</td></tr>'}
+  </tbody></table></div>`}
+function aUserModal(em){const u=users[em];if(!u)return;const p=u.data&&u.data.profile,h=(u.data&&u.data.history)||[];
+  openModal(`<div class="sheet-head"><div class="ava">${initials(u.name)}</div><div style="flex:1;min-width:0"><h2>${esc(u.name)}</h2><div class="muted" style="font-size:13.5px;overflow-wrap:anywhere">${esc(em)}</div></div><button class="x" data-act="close" aria-label="Close">✕</button></div>
+  <div class="sheet-body"><div style="display:flex;gap:6px;flex-wrap:wrap">${planPill(u)}${statusPill(u)}${u.sample?'<span class="pill">Sample account</span>':''}</div>
+   <div class="kv"><div><span>Workouts</span><b>${h.length}</b></div><div><span>Last active</span><b style="font-size:14px">${ago(lastActive(u))}</b></div><div><span>Paid</span><b>${pesoR((u.tx||[]).filter(t=>t.status==='paid').reduce((s,t)=>s+t.amount,0))}</b></div></div>
+   <dl class="rcpt" style="padding:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;margin:0">
+    <dt class="muted">Joined</dt><dd style="margin:0;text-align:right">${new Date(u.created).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</dd>
+    <dt class="muted">Gender · age</dt><dd style="margin:0;text-align:right">${GENDER[u.gender]||'—'} · ${u.dob?ageOf(u.dob):'—'}</dd>
+    <dt class="muted">Goal</dt><dd style="margin:0;text-align:right">${p?esc(goalNames(p)):'Not set'}</dd>
+    <dt class="muted">Experience</dt><dd style="margin:0;text-align:right">${p&&LEVELS[p.level]?LEVELS[p.level].name+' · '+p.days+' days/wk':'—'}</dd>
+    <dt class="muted">Subscription</dt><dd style="margin:0;text-align:right">${u.sub?`${PRICES[u.sub.plan]?PRICES[u.sub.plan].name:'Complimentary'} · ${u.sub.status} · until ${new Date(u.sub.until).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`:'None'}</dd></dl>
+   ${(u.tx||[]).length?`<div><div class="lbl" style="margin-bottom:6px">Payments</div><div class="list">${u.tx.slice().reverse().map(t=>`<button class="row click" style="padding:9px 0" data-act="a-rcpt" data-id="${t.id}"><div class="grow"><div class="t" style="font-size:14px">${t.id}</div><div class="s">${new Date(t.t).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} · ${t.status}</div></div><b class="num">${peso(t.amount)}</b></button>`).join('')}</div></div>`:''}</div>
+  <div class="sheet-foot" style="justify-content:flex-start">${isProU(u)?`<button class="btn sm" data-act="a-revoke" data-em="${esc(em)}">Revoke Premium</button>`:`<button class="btn sm" data-act="a-grant" data-em="${esc(em)}">Grant 1 month Premium</button>`}
+   <button class="btn sm" data-act="a-toggle" data-em="${esc(em)}">${u.disabled?'Enable account':'Disable account'}</button><button class="btn sm danger" data-act="a-del" data-em="${esc(em)}">Delete user</button></div>`)}
+function aSave(msg){store.set('rf_users',users);closeModal();renderAdmin();if(msg)toast(msg)}
+
 /* ---------------- Render ---------------- */
-function render(){
-  const navHtml=NAV.map(([v,l])=>`<button type="button" data-act="go" data-v="${v}" ${ui.view===v||(v==='workout'&&ui.view==='log')||(v==='progress'&&ui.view==='glossary')?'aria-current="page"':''}>${ICON[v]}<span>${l}</span></button>`).join('');
+function render(){if(ui.admin)return renderAdmin();
+  $('#tabbar').style.gridTemplateColumns='';applyAccent(curAccent());
+  {const sp=$('#side-pro');sp.innerHTML=isPro()?`<span class="pro-badge">${ICON.crown} Premium</span>`:`<button class="btn primary sm" data-act="go" data-v="premium">${ICON.crown} Go Premium</button>`}
+  const navHtml=NAV.map(([v,l])=>`<button type="button" data-act="go" data-v="${v}" ${ui.view===v||(v==='workout'&&ui.view==='log')||(v==='progress'&&ui.view==='glossary')||(v==='profile'&&['premium','checkout','receipt'].includes(ui.view))?'aria-current="page"':''}>${ICON[v]}<span>${l}</span></button>`).join('');
   $('#nav').innerHTML=navHtml;$('#tabbar').innerHTML=navHtml;
   {const sp=$('#side-plan');if(data.profile&&following()){const cw=curWeek();sp.innerHTML=`<span>Following 12-week plan</span><b>${cw>12?'Block '+blockNo()+' complete':'Block '+blockNo()+' · Week '+cw+' of 12'}</b>${segbar(cw)}`;sp.hidden=false}else sp.hidden=true}
   const v=$('#view');
-  v.innerHTML=({glossary:vGlossary,progress:vProgress,home:vHome,workout:vWorkout,exercises:vExercises,history:vHistory,profile:vProfile,log:vLog}[ui.view]||vHome)();
+  v.innerHTML=({premium:vPremium,checkout:vCheckout,receipt:vReceipt,glossary:vGlossary,progress:vProgress,home:vHome,workout:vWorkout,exercises:vExercises,history:vHistory,profile:vProfile,log:vLog}[ui.view]||vHome)();
   const r=$('#resume');r.hidden=!(data.active&&ui.view!=='log');
   if(!r.hidden)r.innerHTML=`<span>${esc(data.active.name)} in progress</span><span class="num" data-elapsed>${clock(Date.now()-data.active.start)}</span>`;
   if(ui.view==='exercises'){const s=$('#ex-search');if(s&&ui.focusSearch){s.focus();s.setSelectionRange(s.value.length,s.value.length);ui.focusSearch=false}}
@@ -583,7 +815,7 @@ function vWorkout(){
     <div><button class="btn primary" data-act="plan-start">Start this workout</button></div></div></section>`})():''}
   <section><div class="section-title"><h2>Recommended for you</h2><small>${goalNames(data.profile)} · ${data.profile.days} days a week</small></div>
     <div class="grid">${recIds(data.profile).map(id=>tplCard(TPLM[id],false,true)).join('')}</div></section>
-  <section><div class="section-title"><h2>My routines</h2><small>${data.routines.length} saved</small></div>
+  <section><div class="section-title"><h2>My routines</h2><small>${data.routines.length}${isPro()?'':' of '+FREE_ROUTINES} saved</small></div>
     ${data.routines.length?`<div class="grid">${data.routines.map(r=>tplCard(r,true)).join('')}</div>`:'<div class="panel empty"><b>No routines yet</b>Save a template below or build your own with New routine.</div>'}</section>
   <section><div class="section-title"><h2>All templates</h2><small>${TPL.length} routines</small></div>
     <div class="grid">${TPL.filter(t=>!recIds(data.profile).includes(t.id)).map(t=>tplCard(t)).join('')}</div></section>`;
@@ -607,6 +839,12 @@ function vProfile(){const u=users[me];
   <div class="panel stat"><div class="lbl">Total volume</div><div class="v num">${kfmt(data.history.reduce((a,w)=>a+vol(w),0))}<small>kg</small></div></div>
   <div class="panel stat"><div class="lbl">Time trained</div><div class="v num">${fmtDur(data.history.reduce((a,w)=>a+(w.end-w.start),0))}</div></div>
   <div class="panel stat"><div class="lbl">Routines</div><div class="v num">${data.routines.length}</div></div></div>
+  <section><div class="section-title"><h2>Subscription</h2></div>
+   <div class="panel list"><div class="row"><div class="lock-ic" style="width:42px;height:42px">${ICON.crown}</div><div class="grow"><div class="t">${isPro()?'RepForge Premium · '+(PRICES[u.sub.plan]?PRICES[u.sub.plan].name:'Complimentary'):'Free plan'}</div><div class="s">${isPro()?(u.sub.status==='cancelled'?'Cancelled · Premium until ':'Renews on ')+new Date(u.sub.until).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}):'Upgrade for the 12-week plan, projections, reports and more'}</div></div>
+    ${isPro()?(u.sub.status==='cancelled'?'<button class="btn sm primary" data-act="sub-resume">Resume</button>':(PRICES[u.sub.plan]?'<button class="btn sm" data-act="sub-cancel">Cancel</button>':'')):'<button class="btn sm primary" data-act="go" data-v="premium">Upgrade</button>'}</div>
+    ${(u.tx||[]).slice().reverse().map(t=>`<button class="row click" data-act="my-rcpt" data-id="${t.id}"><div class="grow"><div class="t">${PRICES[t.plan]?'Premium · '+PRICES[t.plan].name:'Complimentary Premium'}</div><div class="s">${t.id} · ${new Date(t.t).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}${t.status==='refunded'?' · Refunded':''}</div></div><b class="num">${peso(t.amount)}</b><span class="muted">Receipt ›</span></button>`).join('')}</div></section>
+  <section><div class="section-title"><h2>App color</h2><small>${isPro()?'Premium':'Premium feature'}</small></div>
+   <div class="panel blk-panel" style="padding:16px 18px"><div class="swatches">${Object.entries(ACCENTS).map(([k,a])=>`<button class="swatch" data-act="accent" data-k="${k}" aria-pressed="${curAccent()===k}"><i style="background:${a.c}">${!isPro()&&k!=='forge'?ICON.lock:''}</i>${a.name}</button>`).join('')}</div></div></section>
   <section><div class="panel list"><button class="row click" data-act="glossary"><div class="ava">Aa</div><div class="grow"><div class="t">Glossary</div><div class="s">${GLOSS.length} training and nutrition terms explained</div></div><span class="muted">›</span></button></div></section>
   <section><div class="section-title"><h2>About you</h2></div>
   <div class="panel list"><div class="row"><div class="grow"><div class="s">Gender</div><div class="t">${GENDER[u.gender]||'Not set'}</div></div><div class="grow"><div class="s">Birthday</div><div class="t">${u.dob?new Date(u.dob+'T00:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}):'Not set'}</div></div><div class="grow"><div class="s">Age</div><div class="t">${u.dob?ageOf(u.dob):'—'}</div></div></div></div></section>
@@ -697,16 +935,16 @@ setInterval(()=>{if(!data)return;if(data.active)document.querySelectorAll('[data
 /* ---------------- Events ---------------- */
 const A={
   'show-register':()=>showAuth('register'),'show-login':()=>showAuth('login'),demo,
-  go:b=>{ui.view=b.dataset.v;render();window.scrollTo(0,0)},
+  go:b=>{closeModal();if(b.dataset.v==='premium'&&ui.view!=='checkout')ui.proReason=null;ui.view=b.dataset.v;render();window.scrollTo(0,0)},
   logout:signOut,close:closeModal,
   'confirm-yes':()=>{const f=modalCb;closeModal();f&&f()},
   muscle:b=>{ui.muscle=b.dataset.m;render()},
   'ex-detail':b=>exDetail(b.dataset.id),
   preview:b=>preview(b.dataset.id),
-  'save-tpl':b=>{const t=TPL.find(x=>x.id===b.dataset.id);data.routines.unshift(mkRoutine(t));save();closeModal();render();toast(`“${t.name}” added to My routines`)},
+  'save-tpl':b=>{if(!isPro()&&data.routines.length>=FREE_ROUTINES)return needPro('Unlimited custom routines');const t=TPL.find(x=>x.id===b.dataset.id);data.routines.unshift(mkRoutine(t));save();closeModal();render();toast(`“${t.name}” added to My routines`)},
   'del-routine':b=>{const r=data.routines.find(x=>x.id===b.dataset.id);confirmBox('Delete routine?',`“${esc(r.name)}” will be removed. Your logged workouts stay in History.`,'Delete',()=>{data.routines=data.routines.filter(x=>x!==r);save();render();toast('Routine deleted')})},
   'del-hist':b=>confirmBox('Delete workout?','This removes it from your history and stats.','Delete',()=>{data.history=data.history.filter(x=>x.id!==b.dataset.id);save();render();toast('Workout deleted')}),
-  'new-routine':()=>builder(),
+  'new-routine':()=>{if(!isPro()&&data.routines.length>=FREE_ROUTINES)return needPro('Unlimited custom routines');builder()},
   'change-goal':()=>showOnboard(true),
   'pw-sel':b=>{ui.pw=+b.dataset.w;render()},
   'pday':b=>{ui.pday=+b.dataset.d;render()},
@@ -716,7 +954,7 @@ const A={
   'dm-wday':b=>{const d=+b.dataset.d,w=ui.tmpW,i=w.indexOf(d);i>=0?w.splice(i,1):w.push(d);w.sort((a,b)=>a-b);drawDays()},
   'days-save':()=>{const w=ui.tmpW;if(w.length<2||w.length>6)return;data.profile.wdays=[...w];data.profile.days=w.length;ui.pday=null;save();closeModal();render();toast('Training days updated')},
   'ob-wday':b=>{const d=+b.dataset.d,w=ob.p.wdays,i=w.indexOf(d);i>=0?w.splice(i,1):w.push(d);w.sort((a,b)=>a-b);drawOnboard()},
-  'start-week-day':startWeekDay,
+  'start-week-day':()=>{if(!following()&&!isPro())return needPro('The 12-week plan');startWeekDay()},
   term:b=>termModal(b.dataset.k),
   glossary:()=>{closeModal();if(ui.view!=='glossary')ui.glBack=ui.view==='log'?'workout':ui.view;ui.view='glossary';render();window.scrollTo(0,0)},
   'gl-cat':b=>{ui.gc=b.dataset.c;render()},
@@ -725,7 +963,29 @@ const A={
   'goal-del':b=>confirmBox('Delete goal?','This removes the goal. Your logged workouts are not affected.','Delete',()=>{data.liftGoals=data.liftGoals.filter(g=>g.id!==b.dataset.id);save();render()}),
   'bw-del':()=>confirmBox('Delete bodyweight goal?','Your weigh-ins stay saved.','Delete',()=>{data.bwGoal=null;save();render()}),
   'plan-start':startPlanDay,
-  'plan-follow':()=>{const B=BLOCKS[blockType(data.profile)];confirmBox('Follow the 12-week plan?',`Week 1 starts this week. RepForge will set your sets, reps and weights every week in a ${B.name.toLowerCase()} built around your goal (${esc(goalNames(data.profile))}). You can stop any time.`,'Start the plan',()=>{ensureProgress();data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null;ui.pday=null;save();render();toast('You\'re now following the 12-week plan')})},
+  'go-premium':b=>{ui.proReason=b.dataset.r;ui.view='premium';render();window.scrollTo(0,0)},
+  bill:b=>{ui.bill=b.dataset.b;render()},
+  pm:b=>{ui.pm=b.dataset.m;render()},
+  'co-test':()=>{ui.pm='card';Object.assign(ui.co=ui.co||{},{'co-name':users[me].name,'co-card':'4242 4242 4242 4242','co-exp':'12/29','co-cvc':'123'});render()},
+  promo:()=>{if(ui.promo){ui.promo=null;ui.promoMsg='';(ui.co||{})['co-promo']='';render();return}const c=($('#co-promo').value||'').trim().toUpperCase();
+    if(PROMOS[c]){ui.promo=c;ui.promoOk=true;ui.promoMsg=PROMOS[c].label+' applied.'}else{ui.promoOk=false;ui.promoMsg=c?`“${c}” isn't a valid promo code.`:'Enter a promo code first.'}render()},
+  pay,
+  'my-rcpt':b=>{const u=users[me];rcptModal(u,u.tx.find(t=>t.id===b.dataset.id),me)},
+  'sub-cancel':()=>confirmBox('Cancel Premium?',`You'll keep Premium until ${new Date(users[me].sub.until).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}. After that your account moves to Free. Your data stays.`,'Cancel subscription',()=>{users[me].sub.status='cancelled';save();render();toast('Subscription cancelled')}),
+  'sub-resume':()=>{users[me].sub.status='active';save();render();toast('Subscription resumed')},
+  accent:b=>{if(b.dataset.k!=='forge'&&!isPro())return needPro('Custom app colors');data.accent=b.dataset.k;save();render();toast(ACCENTS[b.dataset.k].name+' color applied')},
+  rm:b=>{ui.rm=+b.dataset.o;render()},
+  'a-filter':b=>{ui.af=b.dataset.f;renderAdmin()},'a-tfilter':b=>{ui.tf=b.dataset.f;renderAdmin()},
+  'a-user':b=>aUserModal(b.dataset.em),
+  'a-rcpt':b=>{const t=allTx().find(x=>x.id===b.dataset.id);if(t)rcptModal(t.u,t,t.em)},
+  'a-grant':b=>{const u=users[b.dataset.em],t=Date.now(),base=isProU(u)?u.sub.until:t,id='RF-'+new Date(t).getFullYear()+'-'+String(100000+Math.floor(Math.random()*899999));
+    u.tx=(u.tx||[]).concat({id,t,plan:'comp',base:0,discount:0,promo:null,amount:0,method:'comp',detail:'Granted by admin',status:'paid',from:t,to:addMonths(base,1)});u.sub={plan:'comp',status:'active',since:t,until:addMonths(base,1),tx:id};aSave('1 month of Premium granted')},
+  'a-revoke':b=>{const u=users[b.dataset.em];confirmBox('Revoke Premium?',`${esc(u.name)} moves to the Free plan right away. Payments are not refunded.`,'Revoke',()=>{u.sub.status='revoked';u.sub.until=Date.now();aSave('Premium revoked')})},
+  'a-toggle':b=>{const u=users[b.dataset.em];u.disabled=!u.disabled;aSave(u.disabled?'Account disabled':'Account enabled')},
+  'a-del':b=>{const em=b.dataset.em,u=users[em];confirmBox('Delete this user?',`${esc(u.name)} and all their workouts, routines and payment records will be permanently removed from this browser.`,'Delete user',()=>{delete users[em];aSave('User deleted')})},
+  'a-refund':b=>{const t=allTx().find(x=>x.id===b.dataset.id);confirmBox('Refund this payment?',`${peso(t.amount)} will be refunded to ${esc(t.u.name)} (${esc(t.detail)}). If it paid for their current subscription, Premium ends now.`,'Refund',()=>{const r=t.u.tx.find(x=>x.id===t.id);r.status='refunded';if(t.u.sub&&t.u.sub.tx===t.id){t.u.sub.status='refunded';t.u.sub.until=Date.now()}aSave('Payment refunded')})},
+  'a-reseed':()=>confirmBox('Reset sample data?','Sample accounts and their payments are removed and recreated. Real accounts made in this browser are not touched.','Reset',()=>{Object.keys(users).forEach(k=>{if(users[k].sample)delete users[k]});seedSample();aSave('Sample data reset')}),
+  'plan-follow':()=>{if(!isPro()){ui.pendingPlan=true;return needPro('The 12-week plan')}const B=BLOCKS[blockType(data.profile)];confirmBox('Follow the 12-week plan?',`Week 1 starts this week. RepForge will set your sets, reps and weights every week in a ${B.name.toLowerCase()} built around your goal (${esc(goalNames(data.profile))}). You can stop any time.`,'Start the plan',()=>{ensureProgress();data.program={start:weekStart(Date.now()),active:true,block:(data.program&&data.program.block||0)+1};ui.pw=null;ui.pday=null;save();render();toast('You\'re now following the 12-week plan')})},
   'plan-stop':()=>confirmBox('Stop following the plan?','Your logs, maxes and goals stay saved. You can start a new plan any time.','Stop plan',()=>{data.program.active=false;ui.pw=null;save();render();toast('Plan stopped')}),
   'block-restart':()=>confirmBox(curWeek()>12?'Start the next block?':'Restart your block?','Week 1 starts this week. Your logs, maxes and goals stay the same.',curWeek()>12?'Start next block':'Restart',()=>{const nb=blockNo()+(curWeek()>12?1:0);data.program={start:weekStart(Date.now()),active:true,block:nb};ui.pw=null;ui.pday=null;save();render();toast(`Block ${nb} started`)}),
   'ob-goal':b=>{const g=ob.p.goals,k=b.dataset.v,i=g.indexOf(k);if(i>=0)g.splice(i,1);else if(!blockedBy(k,g))g.push(k);drawOnboard()},
@@ -753,13 +1013,18 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal()});
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='ob-bw'){ob.p.bw=t.value;return}
+  if(t.id&&t.id.startsWith('co-')){let v=t.value;if(t.id==='co-card'){v=v.replace(/\D/g,'').slice(0,16).replace(/(.{4})(?=.)/g,'$1 ');t.value=v}
+    if(t.id==='co-exp'){v=v.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);t.value=v}if(t.id==='co-cvc'||t.id==='co-mobile'){v=v.replace(/\D/g,'');t.value=v}
+    (ui.co=ui.co||{})[t.id]=v;const e=$('#co-err');if(e)e.hidden=true;return}
+  if(t.id==='a-search'){ui.aq=t.value;renderAdmin();const g=$('#a-search');g.focus();g.setSelectionRange(g.value.length,g.value.length);return}
+  if(t.id==='t-search'){ui.tq=t.value;renderAdmin();const g=$('#t-search');g.focus();g.setSelectionRange(g.value.length,g.value.length);return}
   if(t.id==='gl-search'){ui.gq=t.value;render();const g=$('#gl-search');g.focus();g.setSelectionRange(g.value.length,g.value.length);return}
   if(t.id==='ex-search'){ui.q=t.value;ui.focusSearch=true;render();return}
   if(t.id==='log-name'&&data.active){data.active.name=t.value;save();return}
   if(t.dataset.f&&data.active){const s=data.active.ex[+t.dataset.i].sets[+t.dataset.j];s[t.dataset.f]=t.value.replace(/[^\d.]/g,'');save();updateLogStats()}});
 document.addEventListener('submit',e=>{if(e.target.dataset.form==='weighin'){e.preventDefault();const kg=parseFloat($('#wi-kg').value);if(!(kg>=30&&kg<=300)){toast('Enter a weight between 30 and 300 kg');return}
   data.weighins.push({t:Date.now(),kg});data.profile.bw=kg;save();render();toast('Weight logged')}});
-document.addEventListener('change',e=>{if(e.target.id==='g-ex')goalHint();if(e.target.id==='rest-sel'){ui.restTotal=+e.target.value;toast(`Rest timer set to ${ui.restTotal}s`)}});
+document.addEventListener('change',e=>{if(e.target.id==='co-wallet')(ui.co=ui.co||{})['co-wallet']=e.target.value;if(e.target.id==='g-ex')goalHint();if(e.target.id==='rest-sel'){ui.restTotal=+e.target.value;toast(`Rest timer set to ${ui.restTotal}s`)}});
 
 /* ---------------- Boot ---------------- */
-(()=>{const s=store.get('rf_session');if(s&&users[s])signIn(s)})();
+(async()=>{await ensureAdmin();const s=store.get('rf_session');if(s&&users[s]&&!users[s].disabled){users[s].role==='admin'?enterAdmin(s):signIn(s)}})();

@@ -25,6 +25,35 @@ RepForge is a workout planner and progress tracker inspired by Hevy. It runs ent
 - **History** and **Profile** with best lifts
 - Responsive layout (desktop sidebar, mobile bottom tab bar) with light and dark mode
 
+## Free vs Premium (freemium model)
+
+| Feature | Free | Premium |
+|---|---|---|
+| Workout logging, history, exercise library, templates, goal tips | ✓ | ✓ |
+| Custom routines | Up to 3 | Unlimited |
+| 12-week periodized plan | – | ✓ |
+| Lift projections, goal predictions, bodyweight tracking | – | ✓ |
+| Monthly training reports | – | ✓ |
+| Custom app colors | – | ✓ |
+
+Premium costs ₱149/month or ₱1,290/year. Promo codes: `STUDENT20` (20% off), `FORGE10` (10% off).
+
+- **Pricing page** with monthly/yearly toggle and a feature comparison
+- **Checkout (transaction) page**: billing choice, card or e-wallet (GCash / Maya), promo codes, order summary with 12% VAT, input validation (Luhn check, expiry, CVC, PH mobile number)
+- **Receipts and billing**: receipt after payment, billing history and receipts in Profile, cancel / resume subscription
+
+> The checkout is a **simulation** for the prototype. No payment is processed and nothing leaves the browser. Use the test card `4242 4242 4242 4242`, any future expiry and any 3-digit CVC.
+
+## Admin console
+
+Log in with **admin@repforge.app / admin1234**.
+
+- **Overview**: total users, Premium members and conversion, MRR, revenue this month and all-time, workouts logged, 6-month revenue chart, plan mix, recent transactions and newest users
+- **Users**: search and filter (Free / Premium / Disabled); manage a user to grant or revoke Premium, disable / enable the account, or delete it
+- **Transactions**: search and filter, view receipts, refund payments (ends the subscription it paid for)
+
+The first admin login adds clearly labelled sample accounts and payments so the dashboard has data to show; **Reset sample data** recreates them.
+
 ## Project structure
 
 ```
